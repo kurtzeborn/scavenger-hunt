@@ -188,6 +188,27 @@ interface Player {
 }
 ```
 
+### Player Session (localStorage)
+```typescript
+// Stored in localStorage to persist across page refreshes
+interface PlayerSession {
+  gameId: string;
+  teamId: string;
+  playerId: string;
+  displayName: string;
+  joinedAt: Date;
+}
+```
+
+**Session Behavior**:
+| Scenario | Behavior |
+|----------|----------|
+| Page refresh during game | ✅ Restored to team, sees current state |
+| Page refresh after game ended | Shows results/judging screen |
+| Different device/browser | Must rejoin (new player ID) |
+| Game deleted by keeper | Clear session, show "game not found" |
+```
+
 ### Scenario (Library)
 ```typescript
 interface Scenario {
@@ -284,25 +305,39 @@ POST   /api/scenarios                Add new scenario (admin)
 
 ### 9.2 Player Flow
 
+**Initial Join:**
 ```
-1. Scan QR code or enter game code
+1. Scan QR code or enter game code → navigates to hunt.k61.dev/game/ABC123
 2. Enter display name
 3. Select team (or create new team)
-4. Wait in Lobby
+4. Session saved to localStorage
+5. Wait in Lobby
    - See team members, other teams
-5. Game Active
+```
+
+**Page Refresh / Return:**
+```
+1. Check localStorage for existing session
+2. Validate session with API (game exists, team valid)
+3. If valid → restore to current game state
+4. If invalid → clear session, show join screen
+```
+
+**During Game:**
+```
+1. Game Active
    - See list of scenarios with status
    - Tap scenario to record video
    - Camera opens with 30-second countdown
    - Preview and confirm upload
    - See scenario marked complete
    - View mini scoreboard (completion counts)
-6. Time's Up
+2. Time's Up
    - See final completion scoreboard
    - Wait for game keeper to start judging
-7. Judging (View Only)
+3. Judging (View Only)
    - Optional: Watch along as game keeper plays videos
-8. Results
+4. Results
    - See final scores with bonus points
 ```
 
