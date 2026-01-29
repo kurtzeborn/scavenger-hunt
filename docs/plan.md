@@ -2,6 +2,16 @@
 
 **Production URL**: https://hunt.k61.dev
 
+---
+
+## ⚠️ TODO: Open Items to Resolve
+
+- [ ] **Error Handling** - Define behavior for upload failures, simultaneous uploads to same scenario, connection drops
+- [ ] **Game Code Format** - Decide format (6 chars? alphanumeric? case-sensitive?), collision avoidance strategy
+- [ ] **Timer UX** - How players see remaining time, warnings (5 min left?), what happens at expiration
+
+---
+
 ## 1. Overview
 
 A multiplayer video scavenger hunt game where teams compete to act out scenarios and capture them on video. A game keeper manages the session and reviews submissions at the end.
