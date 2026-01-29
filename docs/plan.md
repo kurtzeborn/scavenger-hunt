@@ -31,20 +31,16 @@ A multiplayer video scavenger hunt game where teams compete to act out scenarios
 
 ---
 
-## 3. Platform Options Analysis
+## 3. Platform: Progressive Web App (PWA)
 
-### Option A: Progressive Web App (PWA) ⭐ RECOMMENDED
+Mobile-first responsive web app using modern browser APIs.
 
-**Description**: Mobile-first responsive web app using modern browser APIs.
-
-| Pros | Cons |
-|------|------|
-| No app store approval needed | iOS Safari MediaRecorder support added in iOS 14.3, may have quirks |
-| Players join via QR code/link instantly | No push notifications (not needed for this use case) |
-| Single codebase for all platforms | Camera quality controlled by browser, not app |
-| Easy updates - deploy and everyone has latest | |
-| MediaRecorder API can enforce 30-second limit | |
-| Works on phones, tablets, and laptops | |
+**Why PWA?**
+- No app store approval needed - players join via QR code instantly
+- Single codebase for all platforms (phones, tablets, laptops)
+- Easy updates - deploy and everyone has the latest version
+- MediaRecorder API can enforce 30-second video limit
+- Fallback: allow file upload from camera roll if needed
 
 **Browser Support**: MediaRecorder API is supported in Chrome, Firefox, Safari (14.3+), Edge.
 
@@ -58,70 +54,21 @@ A multiplayer video scavenger hunt game where teams compete to act out scenarios
 6. Video uploads in background
 ```
 
-### Option B: Native Apps (React Native / Flutter)
-
-| Pros | Cons |
-|------|------|
-| Best camera control and quality | 1-7 day app store review times |
-| Native UI feel | Requires players to download app before event |
-| Push notifications | Two codebases or cross-platform complexity |
-| Offline recording with sync | Higher development effort |
-
-### Option C: Hybrid (Capacitor/Ionic)
-
-| Pros | Cons |
-|------|------|
-| Web codebase with native plugins | Still requires app store for full features |
-| Native camera plugins available | Added build complexity |
-| Single codebase | Debugging across layers |
-
-### Recommendation: **PWA (Option A)**
-
-For an event-based game where participants need to join quickly:
-- QR code → instant join (no app download)
-- Modern browser APIs handle video capture well
-- 30-second limit enforceable via MediaRecorder
-- Fallback: allow file upload from camera roll if needed
-
 ---
 
-## 4. Authentication Options Analysis
-
-### Option A: Fully Anonymous (Game Codes Only)
-
-**Flow**: Enter game code → Pick team → Enter display name
-
-| Pros | Cons |
-|------|------|
-| Zero friction - perfect for events | No persistent identity |
-| No account creation | Can't track player history |
-| Works for all ages | Potential for trolling (mitigated by game code secrecy) |
-
-### Option B: Full Authentication (Microsoft/Google SSO)
-
-| Pros | Cons |
-|------|------|
-| Verified identities | Friction at event time |
-| Persistent history | Privacy concerns |
-| Secure | May exclude some participants |
-
-### Option C: Hybrid Authentication ⭐ RECOMMENDED
+## 4. Authentication: Hybrid Approach
 
 **Game Keeper**: Authenticated via Microsoft Entra ID (required to create/manage games)
 **Players**: Anonymous with game code + team selection + display name
 
-| Pros | Cons |
-|------|------|
-| Low friction for players | Slightly more complex implementation |
-| Secure management for game keeper | |
-| Game codes are time-limited and single-use | |
-| Can restrict game creation to authorized users | |
+**Why Hybrid?**
+- Zero friction for players - just enter game code, pick team, set display name
+- Secure management for game keeper - protects game creation, video cleanup
+- Game codes are time-limited and single-use
+- Works for all ages, no account creation required
+- Azure Static Web Apps provides built-in Entra ID integration
 
-### Recommendation: **Hybrid (Option C)**
-
-- Game keeper must sign in (protects game creation, video cleanup)
-- Players just need game code (printed on handout, shown on screen)
-- Player identity = Team + Display Name (stored in session/local storage)
+**Player identity** = Team + Display Name (stored in session/local storage)
 
 ---
 
@@ -129,38 +76,45 @@ For an event-based game where participants need to join quickly:
 
 ```mermaid
 flowchart LR
-    subgraph CF["Cloudflare Pages (Free)"]
-        PWA["React SPA / PWA<br/>hunt.k61.dev"]
-    end
-    
     subgraph Azure["Azure"]
-        Functions["Azure Functions (Free)<br/>• Game management API<br/>• Video upload (SAS tokens)<br/>• Scoreboard API"]
+        subgraph SWA["Static Web Apps (Free)"]
+            PWA["React SPA / PWA<br/>hunt.k61.dev"]
+            Functions["Linked Functions<br/>• Game management API<br/>• Video upload (SAS tokens)<br/>• Scoreboard API"]
+        end
         
         subgraph Data["Data Layer"]
             Cosmos["Cosmos DB (Free Tier)<br/>• Games<br/>• Teams<br/>• Scenarios<br/>• Scores"]
             Blob["Blob Storage<br/>~$0.02/GB<br/>(Videos)"]
         end
+        
+        EntraID["Entra ID<br/>(Game Keeper Auth)"]
     end
     
     PWA --> Functions
     Functions --> Cosmos
     Functions --> Blob
+    SWA -.-> EntraID
 ```
+
+**Why Azure Static Web Apps?**
+- Built-in Entra ID authentication (zero-code config for game keeper login)
+- Integrated API routing (no CORS headaches - frontend and API on same domain)
+- Free tier: 100GB bandwidth, 2 custom domains
+- Simpler management with everything in Azure
 
 *Note: SignalR omitted from MVP - using polling for real-time updates instead.*
 
 ---
 
-## 6. Azure & Cloudflare Cost Analysis
+## 6. Azure Cost Analysis
 
 ### Free Tier Components
 
 | Service | Free Tier Limits | Our Usage Estimate |
 |---------|-----------------|-------------------|
-| **Cloudflare Pages** | Unlimited sites, 500 builds/month | ✅ Sufficient |
-| **Azure Functions (Consumption)** | 1M executions/month | ✅ Sufficient |
+| **Azure Static Web Apps** | 100GB bandwidth, 2 custom domains, built-in auth | ✅ Sufficient |
+| **Azure Functions (via SWA)** | 1M executions/month | ✅ Sufficient |
 | **Azure Cosmos DB (Free Tier)** | 1000 RU/s, 25GB storage | ✅ Sufficient |
-| **Azure SignalR (Free)** | 20K messages/day, 20 concurrent | ⚠️ May need upgrade |
 
 ### Paid Components
 
@@ -497,20 +451,19 @@ DELETE /api/games/:id → Deletes all blobs in videos/{gameId}/ + database recor
 - **PWA**: Vite PWA plugin
 - **Video**: MediaRecorder API + Video element
 - **State**: React Query for server state
-- **Hosting**: Cloudflare Pages
+- **Hosting**: Azure Static Web Apps
 
 ### Backend
-- **Runtime**: Azure Functions (Node.js 20, TypeScript)
+- **Runtime**: Azure Functions (Node.js 20, TypeScript) - linked to SWA
 - **Database**: Azure Cosmos DB (NoSQL, Free Tier)
 - **Storage**: Azure Blob Storage
-- **Auth**: Azure Entra ID (for game keeper)
+- **Auth**: Azure Entra ID (built-in via SWA)
 - **Real-time**: Polling initially, SignalR later
 
 ### DevOps
 - **Repo**: GitHub (kurtzeborn/scavenger-hunt)
-- **CI/CD**: GitHub Actions
-- **Frontend Deploy**: Cloudflare Pages auto-deploy → hunt.k61.dev
-- **Backend Deploy**: Azure Functions via GitHub Actions → api.hunt.k61.dev (or hunt-api.azurewebsites.net)
+- **CI/CD**: GitHub Actions (SWA auto-generates workflow)
+- **Deploy**: Azure Static Web Apps auto-deploy → hunt.k61.dev
 
 ---
 
@@ -580,8 +533,8 @@ scavenger-hunt/
 - [ ] PWA manifest and service worker
 - [ ] QR code generation for game codes
 - [ ] Responsive design polish
-- [ ] Cloudflare Pages deployment
-- [ ] Azure Functions deployment
+- [ ] Azure Static Web Apps deployment
+- [ ] Configure Entra ID authentication
 - [ ] Blob lifecycle rules
 - [ ] End-to-end testing
 
