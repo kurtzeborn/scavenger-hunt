@@ -1,5 +1,7 @@
 # Video Scavenger Hunt - Development Plan
 
+**Production URL**: https://hunt.k61.dev
+
 ## 1. Overview
 
 A multiplayer video scavenger hunt game where teams compete to act out scenarios and capture them on video. A game keeper manages the session and reviews submissions at the end.
@@ -125,36 +127,27 @@ For an event-based game where participants need to join quickly:
 
 ## 5. Architecture
 
+```mermaid
+flowchart LR
+    subgraph CF["Cloudflare Pages (Free)"]
+        PWA["React SPA / PWA<br/>hunt.k61.dev"]
+    end
+    
+    subgraph Azure["Azure"]
+        Functions["Azure Functions (Free)<br/>• Game management API<br/>• Video upload (SAS tokens)<br/>• Scoreboard API"]
+        
+        subgraph Data["Data Layer"]
+            Cosmos["Cosmos DB (Free Tier)<br/>• Games<br/>• Teams<br/>• Scenarios<br/>• Scores"]
+            Blob["Blob Storage<br/>~$0.02/GB<br/>(Videos)"]
+        end
+    end
+    
+    PWA --> Functions
+    Functions --> Cosmos
+    Functions --> Blob
 ```
-┌─────────────────┐     ┌──────────────────────────────────┐
-│  Cloudflare     │     │          Azure                   │
-│  Pages (Free)   │     │                                  │
-│                 │     │  ┌────────────────────────────┐  │
-│  - React SPA    │────▶│  │ Azure Functions (Free)     │  │
-│  - PWA          │     │  │ - Game management API      │  │
-│                 │     │  │ - Video upload (SAS tokens)│  │
-└─────────────────┘     │  │ - Scoreboard API           │  │
-                        │  └────────────────────────────┘  │
-                        │               │                  │
-                        │  ┌────────────┴───────────────┐  │
-                        │  │                            │  │
-                        │  ▼                            ▼  │
-                        │  ┌─────────────┐ ┌────────────┐  │
-                        │  │ Cosmos DB   │ │ Blob       │  │
-                        │  │ (Free Tier) │ │ Storage    │  │
-                        │  │             │ │ (Videos)   │  │
-                        │  │ - Games     │ │            │  │
-                        │  │ - Teams     │ │ ~$0.02/GB  │  │
-                        │  │ - Scenarios │ └────────────┘  │
-                        │  │ - Scores    │                 │
-                        │  └─────────────┘                 │
-                        │                                  │
-                        │  ┌────────────────────────────┐  │
-                        │  │ SignalR (Free/Paid)        │  │
-                        │  │ - Real-time scoreboard     │  │
-                        │  └────────────────────────────┘  │
-                        └──────────────────────────────────┘
-```
+
+*Note: SignalR omitted from MVP - using polling for real-time updates instead.*
 
 ---
 
@@ -516,8 +509,8 @@ DELETE /api/games/:id → Deletes all blobs in videos/{gameId}/ + database recor
 ### DevOps
 - **Repo**: GitHub (kurtzeborn/scavenger-hunt)
 - **CI/CD**: GitHub Actions
-- **Frontend Deploy**: Cloudflare Pages auto-deploy
-- **Backend Deploy**: Azure Functions via GitHub Actions
+- **Frontend Deploy**: Cloudflare Pages auto-deploy → hunt.k61.dev
+- **Backend Deploy**: Azure Functions via GitHub Actions → api.hunt.k61.dev (or hunt-api.azurewebsites.net)
 
 ---
 
@@ -593,57 +586,53 @@ scavenger-hunt/
 - [ ] End-to-end testing
 
 ### Phase 5: Future Enhancements
+- [ ] Pre-assigned teams mode (game keeper creates teams in advance)
 - [ ] SignalR for instant updates (if needed)
-- [ ] Scenario categories and difficulty
+- [ ] Scenario categories and difficulty filtering
 - [ ] Custom scenario creation per game
 - [ ] Video thumbnails
 - [ ] Share/download final video compilation
 
 ---
 
-## 16. Scenario Library (Initial Set)
+## 16. Scenario Library (Sample Set)
 
-Here are 20 starter scenarios to seed the library:
+Here are sample scenarios to seed the library:
 
-1. **The Movie Star** - Act out your best impression of a famous movie villain
-2. **Human Statue** - Create a living recreation of a famous landmark
-3. **Silent Story** - Tell a story without using any words (charades style)
-4. **Nature Documentary** - Narrate your teammate like they're a wild animal
-5. **Infomercial** - Sell an ordinary object like it's the greatest invention ever
-6. **Time Traveler** - Act out someone from 200 years ago using a smartphone
-7. **Dance Battle** - Have a 20-second dance-off between teammates
-8. **Superhero Origin** - Create and act out a new superhero's origin story
-9. **Cooking Show Disaster** - Pretend to host a cooking show that goes wrong
-10. **Award Acceptance** - Give an over-the-top award acceptance speech
-11. **Tech Support** - Act out explaining the internet to someone from 1800
-12. **Talent Show** - Perform your most unique hidden talent
-13. **Movie Trailer** - Create a trailer for an imaginary blockbuster movie
-14. **Alien Encounter** - Act out first contact with an alien civilization
-15. **Sports Commentary** - Provide dramatic commentary for an everyday activity
-16. **News Report** - Report breaking news about something mundane
-17. **Fashion Show** - Do a runway walk with whatever you're wearing
-18. **Robot Malfunction** - Act like a robot that's glitching out
-19. **Secret Agent** - Act out a spy on a crucial mission
-20. **Worst Job Interview** - Demonstrate the worst possible job interview
+1. **Gas Station Hero** - Pump gas for a stranger at a gas station
+2. **Frozen Performance** - Sing "Once there was a snowman" in the frozen foods section of a grocery store
+3. **Abbey Road** - Walk across a crosswalk like the Beatles
+4. **YMCA at the Y** - Sing and dance to YMCA in front of a gym
+5. **Playground Pro** - Swing from monkey bars
+6. **Civic Duty** - Give a short speech in front of a government building
+7. **Photo Finish** - Race on a track with a dramatic finish
+8. **Fitness Fanatic** - Do jumping jacks in front of a gym
+9. **Tree Huggers** - Group hug a tree
+10. **Fountain Swimmers** - Make swimming and diving motions in front of a fountain
+11. **Viral Recreation** - Recreate a famous viral or meme video
+12. **Stranger Workout** - Do at least 5 pushups together with a stranger
+13. **Movie Moment** - Reenact a short scene/conversation from your favorite movie
+14. **Nature Documentary** - Film something ordinary and narrate it like it's a wildlife documentary
+15. **Duck Walk** - Waddle in a line like ducks near a lake or pond
+16. **Wrong Restaurant** - Go to McDonald's and try to order a Whopper
+17. **Human Punctuation** - Make a human period at a mall or shopping center
+18. **Play Ball** - Sing the last line of the National Anthem at a baseball diamond
+19. **Cart Racers** - Two team members being pushed in a shopping cart
 
 ---
 
-## 17. Open Questions
+## 17. Design Decisions
 
-1. **Team Creation**: Should players be able to create new teams, or only join existing ones created by game keeper?
-   - Proposed: Players can create teams up to max team count (20)
+| Decision | Resolution |
+|----------|------------|
+| **Team Creation** | Self-organizing: Players create/join teams when entering game. First player names the team, others can join existing teams or create new ones (up to max 20 teams). |
+| **Team Locking** | Yes, teams lock once game starts. No late joiners during active gameplay. |
+| **Video Re-recording** | Players can preview and re-record before uploading. Once uploaded, that scenario is locked for the team. |
+| **Judging Visibility** | Only game keeper can control video playback during judging. UI designed to be projected on a shared screen for everyone to watch together. |
+| **Game History** | Completed games remain viewable until videos expire (7 days). Game keeper can download videos during this period. |
 
-2. **Team Locking**: Should teams lock once game starts (no new players)?
-   - Proposed: Yes, lock teams once game is active
-
-3. **Video Re-recording**: Can a team re-record a scenario after uploading?
-   - Proposed: No, first upload is final (keeps it simple, encourages commitment)
-
-4. **Simultaneous Viewers**: During judging, should players see the same videos as game keeper in real-time?
-   - Proposed: Optional - game keeper can share screen, or players just wait for scores
-
-5. **Game History**: Should completed games be viewable for 7 days (until videos expire)?
-   - Proposed: Yes, game keeper can view past games and scores
+### Future Enhancements (Post-MVP)
+- **Pre-Assigned Teams**: Game keeper creates teams in advance, players select from existing teams only (useful for corporate team-building events)
 
 ---
 
