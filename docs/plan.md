@@ -1,6 +1,6 @@
 # Video Scavenger Hunt - Development Plan
 
-**Production URL**: https://hunt.k61.dev
+**Production URL**: https://vsh.k61.dev
 
 ---
 
@@ -88,7 +88,7 @@ Mobile-first responsive web app using modern browser APIs.
 flowchart LR
     subgraph Azure["Azure"]
         subgraph SWA["Static Web Apps (Free)"]
-            PWA["React SPA / PWA<br/>hunt.k61.dev"]
+            PWA["React SPA / PWA<br/>vsh.k61.dev"]
             Functions["Linked Functions<br/>• Game management API<br/>• Video upload (SAS tokens)<br/>• Scoreboard API"]
         end
         
@@ -317,7 +317,7 @@ POST   /api/scenarios                Add new scenario (admin)
 
 **Initial Join:**
 ```
-1. Scan QR code or enter game code → navigates to hunt.k61.dev/game/ABC123
+1. Scan QR code or enter game code → navigates to vsh.k61.dev/game/ABC123
 2. Enter display name
 3. Select team (or create new team)
 4. Session saved to localStorage
@@ -508,7 +508,7 @@ DELETE /api/games/:id → Deletes all blobs in videos/{gameId}/ + database recor
 ### DevOps
 - **Repo**: GitHub (kurtzeborn/scavenger-hunt)
 - **CI/CD**: GitHub Actions (SWA auto-generates workflow)
-- **Deploy**: Azure Static Web Apps auto-deploy → hunt.k61.dev
+- **Deploy**: Azure Static Web Apps auto-deploy → vsh.k61.dev
 
 ---
 
