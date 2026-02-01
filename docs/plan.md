@@ -13,8 +13,9 @@ A multiplayer video scavenger hunt game where teams compete to act out scenarios
 2. **Players** join via game code, form teams (2-6 players each)
 3. **Teams** complete scenarios by recording and uploading 30-second videos
 4. **Real-time scoreboard** shows scenario completion count per team
-5. **Game Keeper** reviews all videos scenario-by-scenario, awards bonus points
-6. **Final scores** displayed, videos can be cleaned up
+5. **Game Keeper** can pause/resume game or adjust time limit mid-session
+6. **Game Keeper** reviews all videos scenario-by-scenario, awards bonus points
+7. **Final scores** displayed, videos can be cleaned up
 
 ---
 
@@ -185,15 +186,17 @@ interface Game {
   id: string;                    // Unique game ID (also the join code)
   createdBy: string;             // Game keeper's user ID
   createdAt: Date;
-  status: 'lobby' | 'active' | 'judging' | 'complete';
+  status: 'lobby' | 'active' | 'paused' | 'judging' | 'complete';
   config: {
     scenarioCount: 10 | 15 | 20;
-    timeLimit: number;           // Total minutes
+    timeLimit: number;           // Total minutes (can be adjusted mid-game)
     timeLimitPerScenario: number;
   };
   scenarios: ScenarioRef[];      // Selected scenarios for this game
   startedAt?: Date;
   endsAt?: Date;
+  pausedAt?: Date;               // When game was paused (null if not paused)
+  totalPausedSeconds?: number;   // Accumulated pause time to adjust endsAt
 }
 
 interface ScenarioRef {
@@ -265,7 +268,9 @@ interface MediaSubmission {
   blobUrl: string;
   uploadedAt: Date;
   mediaType: 'photo' | 'video';  // Matches scenario requirement
+  status: 'uploading' | 'complete' | 'failed';  // Track upload progress/issues
   durationSeconds?: number;      // Only for videos
+  errorMessage?: string;         // Details if status is 'failed'
 }
 ```
 
@@ -277,8 +282,10 @@ interface MediaSubmission {
 ```
 POST   /api/games                    Create new game
 GET    /api/games/:id                Get game details
-PATCH  /api/games/:id                Update game config
+PATCH  /api/games/:id                Update game config (including time limit)
 POST   /api/games/:id/start          Start the game
+POST   /api/games/:id/pause          Pause the game (freezes timer)
+POST   /api/games/:id/resume         Resume paused game
 POST   /api/games/:id/end            End game early / move to judging
 DELETE /api/games/:id                Delete game and all videos
 ```
@@ -312,6 +319,15 @@ POST   /api/scenarios                Add new scenario (admin only)
 ### Security
 - **Rate Limiting**: 10 game code attempts per IP per minute to prevent brute-force guessing
 
+### API Specification
+All endpoints are documented using [TypeSpec](https://typespec.io/) in `/functions/api.tsp`. This provides:
+- Strongly-typed request/response schemas
+- Auto-generated OpenAPI 3.0 spec
+- Client SDK generation for TypeScript
+- Validation schemas for runtime checking
+
+Run `npx tsp compile .` in the functions folder to regenerate the OpenAPI spec.
+
 ---
 
 ## 9. User Experiences
@@ -330,6 +346,8 @@ POST   /api/scenarios                Add new scenario (admin only)
    - "Start Game" button when ready
 4. During Game
    - View live scoreboard
+   - Pause/Resume game (freezes timer for all players)
+   - Adjust time limit mid-game (+5 min, +10 min, or custom)
    - Can end game early
 5. Judging Phase
    - Scenario-by-scenario media review
