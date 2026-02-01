@@ -87,15 +87,15 @@ flowchart LR
         end
         
         subgraph Data["Data Layer"]
-            Cosmos["Cosmos DB (Free Tier)<br/>• Games<br/>• Teams<br/>• Scenarios<br/>• Scores"]
-            Blob["Blob Storage<br/>~$0.02/GB<br/>(Videos)"]
+            Tables["Table Storage<br/>~$0.001/month<br/>• Games<br/>• Teams<br/>• Scenarios"]
+            Blob["Blob Storage<br/>~$0.02/GB<br/>(Media)"]
         end
         
         EntraID["Entra ID<br/>(Game Keeper Auth)"]
     end
     
     PWA --> Functions
-    Functions --> Cosmos
+    Functions --> Tables
     Functions --> Blob
     SWA -.-> EntraID
 ```
@@ -110,41 +110,70 @@ flowchart LR
 
 ---
 
-## 6. Azure Cost Analysis
+## 6. Azure Cost Estimate
 
-### Free Tier Components
+### Complete Resource Breakdown
 
-| Service | Free Tier Limits | Our Usage Estimate |
-|---------|-----------------|-------------------|
-| **Azure Static Web Apps** | 100GB bandwidth, 2 custom domains, built-in auth | ✅ Sufficient |
-| **Azure Functions (via SWA)** | 1M executions/month | ✅ Sufficient |
-| **Azure Cosmos DB (Free Tier)** | 1000 RU/s, 25GB storage | ✅ Sufficient |
+| Resource | Purpose | Pricing Model | Estimated Monthly Cost |
+|----------|---------|---------------|------------------------|
+| **Azure Static Web Apps (Free)** | Host React PWA + built-in auth | Free tier | $0.00 |
+| **Azure Functions (via SWA)** | API endpoints | Included with SWA | $0.00 |
+| **Azure Table Storage** | Games, teams, scenarios, scores | $0.00036/10K transactions + $0.045/GB | < $0.01 |
+| **Azure Blob Storage** | Photos and videos | $0.02/GB stored + $0.004/10K operations | $0.02 - $0.10 |
+| **Entra ID (for Game Keeper)** | Authentication | Free (included with Azure) | $0.00 |
+| **Custom Domain (vsh.k61.dev)** | Subdomain of existing domain | Already owned | $0.00 |
 
-### Paid Components
+### Storage Calculations
 
-| Service | Cost | Notes |
-|---------|------|-------|
-| **Azure Blob Storage** | ~$0.02/GB/month | Videos stored here. 1 game (20 teams × 20 scenarios × 5MB) = 2GB ≈ $0.04 |
-| **Azure SignalR (Standard)** | $50/month per unit | Only needed if >20 concurrent connections. 1 unit = 1000 connections |
+**Table Storage (per game):**
+- 1 Game record: ~1 KB
+- 20 Teams × ~500 bytes: ~10 KB
+- 120 Players × ~200 bytes: ~24 KB
+- 20 Scenario refs × ~100 bytes: ~2 KB
+- **Total per game: ~40 KB** → thousands of games = still < 1 MB
 
-### Cost Scenarios
+**Blob Storage (per game):**
+| Media Type | Size Each | Quantity (20 teams × 20 scenarios) | Total |
+|------------|-----------|-------------------------------------|-------|
+| Photos | ~500 KB | ~200 (50% of scenarios) | 100 MB |
+| Videos | ~5 MB | ~200 (50% of scenarios) | 1 GB |
+| **Per game total** | | | **~1.1 GB** |
 
-**Small Event (10 teams, 10 scenarios)**
-- Storage: ~500MB = $0.01/month
-- SignalR: Free tier sufficient (10 teams × 4 avg players = 40 connections) ⚠️ May hit free limit
-- **Total: ~$0.01-$50/month** (depends on SignalR needs)
+### Monthly Cost Scenarios
 
-**Large Event (20 teams, 20 scenarios)**
-- Storage: ~2GB = $0.04/month
-- SignalR: Standard tier likely needed = $50/month
-- **Total: ~$50/month**
+| Scenario | Games/Month | Blob Storage | Table Storage | **Total** |
+|----------|-------------|--------------|---------------|-----------|
+| Personal use (1-2 games) | 2 | ~2 GB = $0.04 | < $0.01 | **~$0.05** |
+| Monthly events (4 games) | 4 | ~4 GB = $0.08 | < $0.01 | **~$0.10** |
+| Heavy use (10 games) | 10 | ~10 GB = $0.20 | < $0.01 | **~$0.25** |
 
-### Alternative: Polling Instead of SignalR
+*Note: Blob lifecycle policy auto-deletes media after 7 days, so storage doesn't accumulate.*
 
-To stay fully free, we could use polling (every 15-30 seconds) instead of SignalR:
-- Slightly higher API calls but within free tier
-- 30-second update requirement is easily met
-- **Recommendation**: Start with polling, add SignalR later if needed
+### One-Time vs Recurring
+
+| Type | Resource | Cost |
+|------|----------|------|
+| **One-time** | Azure subscription | Free (pay-as-you-go) |
+| **One-time** | Domain (if new) | ~$10-15/year |
+| **Recurring** | Storage (Tables + Blobs) | ~$0.05-0.25/month |
+
+### Optional Future Costs
+
+| Resource | When Needed | Cost |
+|----------|-------------|------|
+| **Azure SignalR** | Real-time updates (>30s polling unacceptable) | $50/month |
+| **Azure CDN** | Global distribution for large audiences | ~$0.08/GB |
+| **Application Insights** | Monitoring/debugging | Free tier: 5GB/month |
+
+### Cost Summary
+
+| | Monthly | Annual |
+|-|---------|--------|
+| **Minimum (personal use)** | $0.05 | $0.60 |
+| **Typical (monthly events)** | $0.10 | $1.20 |
+| **Maximum (heavy use, no SignalR)** | $0.25 | $3.00 |
+
+**Bottom line: This app costs less than a cup of coffee per year to run.**
 
 ---
 
@@ -553,7 +582,7 @@ DELETE /api/games/:id → Deletes all blobs in videos/{gameId}/ + database recor
 
 ### Backend
 - **Runtime**: Azure Functions (Node.js 20, TypeScript) - linked to SWA
-- **Database**: Azure Cosmos DB (NoSQL, Free Tier)
+- **Database**: Azure Table Storage (simple key-value, ultra low cost)
 - **Storage**: Azure Blob Storage
 - **Auth**: Azure Entra ID (built-in via SWA)
 - **Real-time**: Polling initially, SignalR later
@@ -608,7 +637,7 @@ scavenger-hunt/
 ### Phase 1: Foundation (Week 1-2)
 - [ ] Project setup (React + Vite + Azure Functions)
 - [ ] Basic authentication (Entra ID for game keeper)
-- [ ] Cosmos DB setup and data models
+- [ ] Azure Table Storage setup and data models
 - [ ] Game CRUD operations
 - [ ] Scenario library (seed with 20-30 scenarios)
 
@@ -752,7 +781,7 @@ Logo and icon assets are available in `/logo/`:
 
 1. ✅ Create repository with plan
 2. [ ] Set up project structure (web + functions folders)
-3. [ ] Initialize Azure resources (Cosmos DB, Storage, Functions)
+3. [ ] Initialize Azure resources (Table Storage, Blob Storage)
 4. [ ] Implement authentication
 5. [ ] Build game creation flow
 6. [ ] Implement player join experience
