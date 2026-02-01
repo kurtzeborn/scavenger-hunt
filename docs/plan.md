@@ -4,14 +4,6 @@
 
 ---
 
-## ⚠️ TODO: Open Items to Resolve
-
-- [ ] **Error Handling** - Define behavior for upload failures, simultaneous uploads to same scenario, connection drops
-- [ ] **Game Code Format** - Decide format (6 chars? alphanumeric? case-sensitive?), collision avoidance strategy
-- [ ] **Timer UX** - How players see remaining time, warnings (5 min left?), what happens at expiration
-
----
-
 ## 1. Overview
 
 A multiplayer video scavenger hunt game where teams compete to act out scenarios and capture them on video. A game keeper manages the session and reviews submissions at the end.
@@ -53,6 +45,8 @@ Mobile-first responsive web app using modern browser APIs.
 - Fallback: allow file upload from camera roll if needed
 
 **Browser Support**: MediaRecorder API is supported in Chrome, Firefox, Safari (14.3+), Edge.
+
+**Accessibility**: Semantic HTML, full keyboard navigation, color-blind friendly icons displayed alongside colors.
 
 **Camera Recording Flow**:
 ```
@@ -185,15 +179,15 @@ interface ScenarioRef {
 interface Team {
   id: string;
   gameId: string;
-  name: string;
-  color: string;                 // For UI display
+  name: string;                  // Max 20 chars, duplicates allowed
+  color: string;                 // Auto-assigned from 8-color palette
   players: Player[];
   completedScenarios: string[];  // Scenario IDs
 }
 
 interface Player {
   id: string;                    // Session-generated ID
-  displayName: string;
+  displayName: string;           // Duplicates allowed; identified by team + name
   joinedAt: Date;
 }
 ```
@@ -225,14 +219,15 @@ interface Scenario {
   id: string;
   title: string;                 // e.g., "Act out your best movie villain"
   description: string;           // Detailed instructions
-  category?: string;             // For filtering/organization
+  mediaType: 'photo' | 'video';  // What type of capture is required
+  category: 'location' | 'general' | 'church' | string;  // For filtering/organization
   difficulty?: 'easy' | 'medium' | 'hard';
 }
 ```
 
-### Video Submission
+### Media Submission
 ```typescript
-interface VideoSubmission {
+interface MediaSubmission {
   id: string;
   gameId: string;
   teamId: string;
@@ -240,7 +235,8 @@ interface VideoSubmission {
   uploadedBy: string;            // Player ID
   blobUrl: string;
   uploadedAt: Date;
-  durationSeconds: number;
+  mediaType: 'photo' | 'video';  // Matches scenario requirement
+  durationSeconds?: number;      // Only for videos
 }
 ```
 
@@ -281,8 +277,11 @@ GET    /api/games/:id/scores         Get final scores
 ### Scenarios (Library)
 ```
 GET    /api/scenarios                List all scenarios
-POST   /api/scenarios                Add new scenario (admin)
+POST   /api/scenarios                Add new scenario (admin only)
 ```
+
+### Security
+- **Rate Limiting**: 10 game code attempts per IP per minute to prevent brute-force guessing
 
 ---
 
@@ -293,6 +292,7 @@ POST   /api/scenarios                Add new scenario (admin)
 ```
 1. Sign in with Microsoft
 2. Create New Game
+   - Select scenario categories to include (location, general, church, etc.)
    - Select scenario count (10/15/20)
    - Set time limit
    - Get shareable game code / QR code
@@ -303,8 +303,8 @@ POST   /api/scenarios                Add new scenario (admin)
    - View live scoreboard
    - Can end game early
 5. Judging Phase
-   - Scenario-by-scenario video review
-   - Play videos from each team
+   - Scenario-by-scenario media review
+   - View photos or play videos from each team
    - Award bonus point per scenario
    - "Next Scenario" to continue
 6. Results
@@ -336,9 +336,10 @@ POST   /api/scenarios                Add new scenario (admin)
 **During Game:**
 ```
 1. Game Active
-   - See list of scenarios with status
-   - Tap scenario to record video
-   - Camera opens with 30-second countdown
+   - See list of scenarios with status (photo icon or video icon)
+   - Tap scenario to capture media
+   - If photo: Camera opens, tap to capture, preview and confirm
+   - If video: Camera opens with 30-second countdown, auto-stops
    - Preview and confirm upload
    - See scenario marked complete
    - View mini scoreboard (completion counts)
@@ -353,20 +354,44 @@ POST   /api/scenarios                Add new scenario (admin)
 
 ---
 
-## 10. Video Capture Implementation
+## 10. Media Capture Implementation
 
-### MediaRecorder API Approach
+### Photo vs Video Capture
+
+Scenarios specify whether they require a photo or a 30-second video. The app dynamically switches capture mode based on the selected scenario's `mediaType` field.
+
+| Media Type | Capture Method | File Format | Max Size | Audio |
+|------------|----------------|-------------|----------|-------|
+| **Photo** | `getUserMedia` + canvas snapshot | JPEG | ~500KB | N/A |
+| **Video** | MediaRecorder API | MP4 (preferred) or WebM fallback | ~5MB | Always captured; mute available during playback |
+
+**Video Format Strategy**: Prefer MP4 (H.264) for universal iOS/Android compatibility. Fall back to WebM only if MP4 is not supported (e.g., older Firefox). Both formats are accepted for playback.
+
+**Camera Permission Denied**: If user denies camera access, show instructions to enable in browser settings. File upload fallback is always available.
+
+### Video: MediaRecorder API Approach
 
 ```typescript
+function getPreferredMimeType(): string {
+  // Prefer MP4 for universal iOS/Android compatibility
+  if (MediaRecorder.isTypeSupported('video/mp4')) {
+    return 'video/mp4';
+  }
+  // Fallback to WebM (Firefox, older browsers)
+  if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+    return 'video/webm;codecs=vp9';
+  }
+  return 'video/webm';
+}
+
 async function startRecording(): Promise<Blob> {
+  const mimeType = getPreferredMimeType();
   const stream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: 'environment', width: 1280, height: 720 },
     audio: true
   });
   
-  const recorder = new MediaRecorder(stream, {
-    mimeType: 'video/webm;codecs=vp9'
-  });
+  const recorder = new MediaRecorder(stream, { mimeType });
   
   const chunks: Blob[] = [];
   recorder.ondataavailable = (e) => chunks.push(e.data);
@@ -379,24 +404,51 @@ async function startRecording(): Promise<Blob> {
   return new Promise((resolve) => {
     recorder.onstop = () => {
       stream.getTracks().forEach(t => t.stop());
-      resolve(new Blob(chunks, { type: 'video/webm' }));
+      resolve(new Blob(chunks, { type: mimeType }));
     };
+  });
+}
+```
+
+### Photo: Canvas Snapshot Approach
+
+```typescript
+async function capturePhoto(): Promise<Blob> {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: 'environment', width: 1280, height: 720 }
+  });
+  
+  const video = document.createElement('video');
+  video.srcObject = stream;
+  await video.play();
+  
+  // Wait for user to tap capture button, then:
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d')!.drawImage(video, 0, 0);
+  
+  stream.getTracks().forEach(t => t.stop());
+  
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => resolve(blob!), 'image/jpeg', 0.85);
   });
 }
 ```
 
 ### Fallback: File Upload
 ```typescript
-// For browsers with poor MediaRecorder support
+// For browsers with poor MediaRecorder/camera support
 <input 
   type="file" 
-  accept="video/*" 
+  accept={scenario.mediaType === 'photo' ? 'image/*' : 'video/*'}
   capture="environment"
   onChange={handleFileSelect}
 />
 
 function handleFileSelect(file: File) {
-  // Validate duration client-side (approximate via file size or Video element)
+  // Validate file type matches scenario.mediaType
+  // For videos: validate duration client-side (approximate via file size or Video element)
   // Upload to blob storage
 }
 ```
@@ -447,10 +499,11 @@ connection.on('ScoreUpdated', (teamId, completedCount) => {
 
 ### Blob Structure
 ```
-videos/
+media/
   {gameId}/
     {teamId}/
-      {scenarioId}.webm
+      {scenarioId}.mp4    # For video scenarios (or .webm fallback)
+      {scenarioId}.jpg    # For photo scenarios
 ```
 
 ### Auto-Cleanup (7 Days)
@@ -586,36 +639,50 @@ scavenger-hunt/
 ### Phase 5: Future Enhancements
 - [ ] Pre-assigned teams mode (game keeper creates teams in advance)
 - [ ] SignalR for instant updates (if needed)
-- [ ] Scenario categories and difficulty filtering
 - [ ] Custom scenario creation per game
-- [ ] Video thumbnails
-- [ ] Share/download final video compilation
+- [ ] Media thumbnails for quick review
+- [ ] Share/download final media compilation
 
 ---
 
 ## 16. Scenario Library (Sample Set)
 
-Here are sample scenarios to seed the library:
+Here are sample scenarios to seed the library. Each scenario specifies a **media type** (📷 photo or 🎬 video) and a **category**.
 
-1. **Gas Station Hero** - Pump gas for a stranger at a gas station
-2. **Frozen Performance** - Sing "Once there was a snowman" in the frozen foods section of a grocery store
-3. **Abbey Road** - Walk across a crosswalk like the Beatles
-4. **YMCA at the Y** - Sing and dance to YMCA in front of a gym
-5. **Playground Pro** - Swing from monkey bars
-6. **Civic Duty** - Give a short speech in front of a government building
-7. **Photo Finish** - Race on a track with a dramatic finish
-8. **Fitness Fanatic** - Do jumping jacks in front of a gym
-9. **Tree Huggers** - Group hug a tree
-10. **Fountain Swimmers** - Make swimming and diving motions in front of a fountain
-11. **Viral Recreation** - Recreate a famous viral or meme video
-12. **Stranger Workout** - Do at least 5 pushups together with a stranger
-13. **Movie Moment** - Reenact a short scene/conversation from your favorite movie
-14. **Nature Documentary** - Film something ordinary and narrate it like it's a wildlife documentary
-15. **Duck Walk** - Waddle in a line like ducks near a lake or pond
-16. **Wrong Restaurant** - Go to McDonald's and try to order a Whopper
-17. **Human Punctuation** - Make a human period at a mall or shopping center
-18. **Play Ball** - Sing the last line of the National Anthem at a baseball diamond
-19. **Cart Racers** - Two team members being pushed in a shopping cart
+### Location-Based Scenarios
+| # | Title | Description | Media |
+|---|-------|-------------|-------|
+| 1 | **Gas Station Hero** | Pump gas for a stranger at a gas station | 🎬 video |
+| 2 | **Frozen Performance** | Sing "Once there was a snowman" in the frozen foods section | 🎬 video |
+| 3 | **Abbey Road** | Walk across a crosswalk like the Beatles | 🎬 video |
+| 4 | **YMCA at the Y** | Sing and dance to YMCA in front of a gym | 🎬 video |
+| 5 | **Civic Duty** | Give a short speech in front of a government building | 🎬 video |
+| 6 | **Fountain Swimmers** | Make swimming and diving motions in front of a fountain | 🎬 video |
+| 7 | **Playground Pro** | Swing from monkey bars | 📷 photo |
+| 8 | **Tree Huggers** | Group hug a tree | 📷 photo |
+| 9 | **Play Ball** | Sing the last line of the National Anthem at a baseball diamond | 🎬 video |
+| 10 | **Wrong Restaurant** | Go to McDonald's and try to order a Whopper | 🎬 video |
+
+### General Scenarios
+| # | Title | Description | Media |
+|---|-------|-------------|-------|
+| 11 | **Viral Recreation** | Recreate a famous viral or meme video | 🎬 video |
+| 12 | **Stranger Workout** | Do at least 5 pushups together with a stranger | 🎬 video |
+| 13 | **Movie Moment** | Reenact a short scene from your favorite movie | 🎬 video |
+| 14 | **Nature Documentary** | Film something ordinary and narrate it like wildlife | 🎬 video |
+| 15 | **Duck Walk** | Waddle in a line like ducks | 🎬 video |
+| 16 | **Human Punctuation** | Form a human period at a mall | 📷 photo |
+| 17 | **Cart Racers** | Two team members being pushed in a shopping cart | 🎬 video |
+| 18 | **Photo Finish** | Race on a track with a dramatic finish | 📷 photo |
+| 19 | **Fitness Fanatic** | Do jumping jacks in front of a gym | 🎬 video |
+
+### Church Scenarios
+| # | Title | Description | Media |
+|---|-------|-------------|-------|
+| 20 | **Chapel Choir** | Sing a hymn together inside a church | 🎬 video |
+| 21 | **Steeple Selfie** | Group photo with a church steeple in the background | 📷 photo |
+| 22 | **Painting Copy** | Pose as subjects in a painting with the actual painting in background | 📷 photo |
+| 24 | **Pew Pose** | Team sitting reverently in church pews | 📷 photo |
 
 ---
 
@@ -625,12 +692,49 @@ Here are sample scenarios to seed the library:
 |----------|------------|
 | **Team Creation** | Self-organizing: Players create/join teams when entering game. First player names the team, others can join existing teams or create new ones (up to max 20 teams). |
 | **Team Locking** | Yes, teams lock once game starts. No late joiners during active gameplay. |
+| **Empty Teams** | Auto-deleted if empty when game starts. |
+| **Minimum to Start** | At least 2 teams with 1+ players each required. |
+| **Player Kick** | Not in MVP; game keeper can delete entire game if needed. |
+| **Scenario Order** | All teams get same scenarios; teams complete them in any order they choose. |
 | **Video Re-recording** | Players can preview and re-record before uploading. Once uploaded, that scenario is locked for the team. |
 | **Judging Visibility** | Only game keeper can control video playback during judging. UI designed to be projected on a shared screen for everyone to watch together. |
+| **Tie Breaker** | If teams have same score, the team that completed their scenarios fastest wins. |
 | **Game History** | Completed games remain viewable until videos expire (7 days). Game keeper can download videos during this period. |
+
+### Error Handling
+| Scenario | Behavior |
+|----------|----------|
+| **Upload failure** | Auto-retry 3x with exponential backoff, then show "Retry" button |
+| **Simultaneous uploads** | First-upload-wins; reject subsequent uploads for same scenario |
+| **Connection drop** | Queue uploads locally, sync when connection restored, show "offline" indicator |
+| **Upload timeout** | 60 seconds before declaring failure |
+| **Upload after timer expires** | Reject unless upload was in-progress before expiration (60s grace period) |
+
+### Game Code Format
+| Aspect | Decision |
+|--------|----------|
+| **Format** | 4 uppercase letters (A-Z, excluding O and I) |
+| **Case sensitivity** | Case-insensitive (converted to uppercase on entry) |
+| **Character set** | 24 letters → 24^4 = 331,776 combinations |
+| **Collision avoidance** | Check for active/recent games before assigning |
+| **Expiration** | Codes released 7 days after game ends (when media deleted) |
+
+### Timer UX
+| Aspect | Decision |
+|--------|----------|
+| **Display** | Persistent header bar, format `45:30` (no label) |
+| **Color changes** | Green (>10 min) → Yellow (≤10 min) → Red (≤1 min) |
+| **Alerts** | Vibrate at 5 min and 1 min remaining |
+| **Expiration** | 60-second grace period for in-progress uploads, then hard lock |
+| **Post-expiry** | Auto-redirect to "Waiting for judging" screen with "Time's up!" toast |
 
 ### Future Enhancements (Post-MVP)
 - **Pre-Assigned Teams**: Game keeper creates teams in advance, players select from existing teams only (useful for corporate team-building events)
+
+### Branding Assets
+Logo and icon assets are available in `/logo/`:
+- `vsh_icon.png` - App icon (PWA, favicon)
+- `vsh_logo.png` - Full logo for headers and splash screens
 
 ---
 
