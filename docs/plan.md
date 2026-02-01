@@ -61,17 +61,35 @@ Mobile-first responsive web app using modern browser APIs.
 
 ---
 
-## 4. Authentication: Hybrid Approach
+## 4. Authentication & Authorization
 
-**Game Keeper**: Authenticated via Microsoft Entra ID (required to create/manage games)
+**Game Keeper**: Authenticated via Microsoft Entra ID + authorized via email allowlist
 **Players**: Anonymous with game code + team selection + display name
+
+### Authentication (Who are you?)
+- Sign in with Microsoft account via Entra ID
+- Azure Static Web Apps provides built-in integration
+
+### Authorization (Are you allowed?)
+- After sign-in, email address is checked against an allowlist in Table Storage
+- Only approved emails can access game keeper features
+- Any existing game keeper can invite others by adding their email
+
+**Unauthorized user flow:**
+```
+1. User signs in with Microsoft
+2. Email not in allowlist
+3. Shows error: "You're signed in as user@example.com but you're not 
+   authorized as a game keeper. Ask an existing game keeper to invite you."
+4. Option to sign out and try different account
+```
 
 **Why Hybrid?**
 - Zero friction for players - just enter game code, pick team, set display name
 - Secure management for game keeper - protects game creation, video cleanup
+- Controlled access - only invited users can be game keepers
 - Game codes are time-limited and single-use
 - Works for all ages, no account creation required
-- Azure Static Web Apps provides built-in Entra ID integration
 
 **Player identity** = Team + Display Name (stored in session/local storage)
 
@@ -274,6 +292,16 @@ interface MediaSubmission {
 }
 ```
 
+### Game Keeper (Allowlist)
+```typescript
+interface GameKeeper {
+  email: string;                 // Primary key (lowercase)
+  displayName: string;           // From Microsoft profile
+  addedBy: string;               // Email of who invited them
+  addedAt: Date;
+}
+```
+
 ---
 
 ## 8. API Endpoints
@@ -316,6 +344,14 @@ GET    /api/scenarios                List all scenarios
 POST   /api/scenarios                Add new scenario (admin only)
 ```
 
+### Game Keeper Management (Game Keeper Only)
+```
+GET    /api/gamekeepers              List all game keepers
+POST   /api/gamekeepers              Invite new game keeper (by email)
+DELETE /api/gamekeepers/:email       Remove game keeper
+GET    /api/me                       Get current user's auth status and game keeper status
+```
+
 ### Security
 - **Rate Limiting**: 10 game code attempts per IP per minute to prevent brute-force guessing
 
@@ -332,10 +368,60 @@ Run `npx tsp compile .` in the functions folder to regenerate the OpenAPI spec.
 
 ## 9. User Experiences
 
+### 9.0 Landing Page (`vsh.k61.dev`)
+
+All users arrive at the same landing page. The UI adapts based on authentication state:
+
+```
+┌─────────────────────────────────────┐
+│       🎬 Video Scavenger Hunt       │
+│                                     │
+│  ┌─────────────────────────────┐    │
+│  │  Enter Game Code: [____]    │    │  ← Players enter code here
+│  │         [Join Game]         │    │
+│  └─────────────────────────────┘    │
+│                                     │
+│            ─── or ───               │
+│                                     │
+│    [Sign in to Create a Game]       │  ← Game keeper clicks here
+│                                     │
+└─────────────────────────────────────┘
+```
+
+**Behavior by auth state:**
+| State | What User Sees |
+|-------|----------------|
+| **Not signed in** | Game code input + "Sign in to Create a Game" link |
+| **Signed in + authorized** | Game keeper dashboard with "Create Game" + "Invite Game Keeper" |
+| **Signed in + NOT authorized** | Error message with their email, prompt to request invite |
+
+**Sign-in flow:**
+1. User clicks "Sign in to Create a Game"
+2. Redirects to Microsoft login (`/.auth/login/aad`)
+3. User signs in with Microsoft account
+4. Redirects back to `vsh.k61.dev`
+5. App calls `/api/me` to check if email is in allowlist
+6. If authorized → shows game keeper dashboard
+7. If not authorized → shows error with email and invite instructions
+
+**Unauthorized message example:**
+```
+┌─────────────────────────────────────────────────┐
+│  ⚠️ Not Authorized                              │
+│                                                 │
+│  You're signed in as: user@example.com          │
+│                                                 │
+│  You're not registered as a game keeper.        │
+│  Ask an existing game keeper to invite you.     │
+│                                                 │
+│  [Sign Out]  [Try Different Account]            │
+└─────────────────────────────────────────────────┘
+```
+
 ### 9.1 Game Keeper Flow
 
 ```
-1. Sign in with Microsoft
+1. Sign in with Microsoft (via landing page)
 2. Create New Game
    - Select scenario categories to include (location, general, church, etc.)
    - Select scenario count (10/15/20)
