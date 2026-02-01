@@ -668,8 +668,43 @@ Use Azure Blob Storage Lifecycle Management:
 
 Game keeper can trigger immediate deletion:
 ```
-DELETE /api/games/:id → Deletes all blobs in videos/{gameId}/ + database records
+DELETE /api/games/:id → Deletes all blobs in media/{gameId}/ + database records
 ```
+
+### Scheduled Cleanup (Timer Function)
+
+A scheduled Azure Function runs daily to clean up expired data:
+
+```typescript
+// Timer trigger: runs daily at 2:00 AM UTC
+export async function cleanupExpiredGames(timer: Timer): Promise<void> {
+  const cutoffDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
+  
+  // 1. Find games older than 7 days
+  const expiredGames = await tableClient.listEntities({
+    filter: `createdAt lt datetime'${cutoffDate.toISOString()}'`
+  });
+  
+  for (const game of expiredGames) {
+    // 2. Delete all blobs for this game (belt and suspenders with lifecycle policy)
+    await deleteContainer(`media/${game.id}`);
+    
+    // 3. Delete Table Storage records
+    await deleteGameRecords(game.id);  // Game, Teams, Players, MediaSubmissions
+  }
+  
+  console.log(`Cleaned up ${count} expired games`);
+}
+```
+
+**What gets cleaned up:**
+| Data | Storage | Cleanup Method |
+|------|---------|----------------|
+| Photos/Videos | Blob Storage | Lifecycle policy + scheduled function |
+| Game records | Table Storage | Scheduled function |
+| Team records | Table Storage | Scheduled function |
+| MediaSubmission records | Table Storage | Scheduled function |
+| Game codes | Released for reuse after cleanup |
 
 ---
 
@@ -892,3 +927,4 @@ Logo and icon assets are available in `/logo/`:
 7. [ ] Add video capture and upload
 8. [ ] Build judging experience
 9. [ ] Deploy and test end-to-end
+10. [ ] Implement scheduled cleanup function (timer trigger for 7-day expiration)
