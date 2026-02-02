@@ -824,13 +824,13 @@ scavenger-hunt/
 - [x] Local development environment with WSL support
 - [x] Documentation (DEVELOPMENT.md, copilot-instructions.md)
 
-### Phase 2: Core Gameplay (Week 3-4)
-- [ ] Player join flow (game code, team selection)
-- [ ] Lobby experience (waiting for game start)
-- [ ] Scenario list UI
-- [ ] Video capture with MediaRecorder
-- [ ] Video upload to Blob Storage
-- [ ] Scenario completion tracking
+### Phase 2: Core Gameplay (Week 3-4) ✅ COMPLETE
+- [x] Player join flow (game code, team selection)
+- [x] Lobby experience (waiting for game start)
+- [x] Scenario list UI
+- [x] Video capture with MediaRecorder
+- [x] Video upload to Blob Storage
+- [x] Scenario completion tracking
 
 ### Phase 3: Real-Time & Scoring (Week 5)
 - [ ] Polling-based scoreboard updates

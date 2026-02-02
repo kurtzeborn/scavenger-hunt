@@ -16,8 +16,8 @@ For local testing setup, see [docs/DEVELOPMENT.md](../docs/DEVELOPMENT.md).
 
 ## Commit Standards
 
-- **Keep commit messages concise** - 3-5 bullet points max
-- Use descriptive titles that explain what changed and why
+- **Keep commit messages concise** - 3-5 bullet points max, ~5 words each
+- Use short, action-oriented phrases (e.g., "Add player join flow" not "Added the player join flow with game code entry and team selection")
 - Stage all related files together
 
 ## Code Quality

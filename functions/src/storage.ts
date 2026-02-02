@@ -42,7 +42,37 @@ export function getMediaContainer(): ContainerClient {
   return blobServiceClient.getContainerClient('media');
 }
 
+export async function initializeBlobCors(): Promise<void> {
+  try {
+    // Determine allowed origins based on environment
+    // In production, restrict to actual domain; in dev, allow all
+    const isLocalDev = (process.env.AZURE_STORAGE_CONNECTION_STRING || 'UseDevelopmentStorage=true') === 'UseDevelopmentStorage=true';
+    const allowedOrigins = isLocalDev 
+      ? '*' 
+      : (process.env.ALLOWED_ORIGINS || 'https://*.azurestaticapps.net');
+    
+    // Set CORS rules to allow browser uploads
+    await blobServiceClient.setProperties({
+      cors: [
+        {
+          allowedOrigins,
+          allowedMethods: 'GET,HEAD,PUT,POST,DELETE,OPTIONS',
+          allowedHeaders: '*',
+          exposedHeaders: '*',
+          maxAgeInSeconds: 3600,
+        },
+      ],
+    });
+    console.log('Configured blob CORS rules for origins:', allowedOrigins);
+  } catch (error: any) {
+    console.error('Failed to set blob CORS rules:', error.message);
+  }
+}
+
 export async function initializeBlob(): Promise<void> {
+  // Set CORS rules first
+  await initializeBlobCors();
+  
   const container = getMediaContainer();
   try {
     await container.create();

@@ -1,6 +1,6 @@
 // API client functions for the scavenger hunt app
 
-import type { Game, Scenario, GameConfig } from '../types';
+import type { Game, Scenario, GameConfig, Team, Player, MediaSubmission } from '../types';
 
 const API_BASE = '/api';
 
@@ -31,7 +31,11 @@ async function apiFetch<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Request failed' }));
-    throw new ApiError(error.error || 'Request failed', response.status);
+    console.error('API Error Response:', error);
+    const message = error.details 
+      ? `${error.error}: ${error.details}` 
+      : (error.error || 'Request failed');
+    throw new ApiError(message, response.status);
   }
 
   // Handle 204 No Content
@@ -92,6 +96,95 @@ export async function startGame(gameId: string): Promise<Game> {
   return apiFetch<Game>(`/games/${gameId}/start`, {
     method: 'POST',
   });
+}
+
+// ============ Teams API ============
+
+export interface JoinGameRequest {
+  displayName: string;
+  teamId?: string;
+  teamName?: string;
+}
+
+export interface JoinGameResponse {
+  team: Team;
+  player: Player;
+}
+
+export async function joinGame(gameId: string, data: JoinGameRequest): Promise<JoinGameResponse> {
+  return apiFetch<JoinGameResponse>(`/games/${gameId}/join`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function fetchTeams(gameId: string): Promise<Team[]> {
+  return apiFetch<Team[]>(`/games/${gameId}/teams`);
+}
+
+export async function leaveTeam(gameId: string, teamId: string, playerId: string): Promise<void> {
+  return apiFetch<void>(`/games/${gameId}/teams/${teamId}/players/${playerId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function seedTestTeams(gameId: string): Promise<{ message: string; teams: Team[] }> {
+  return apiFetch<{ message: string; teams: Team[] }>(`/games/${gameId}/teams/seed`, {
+    method: 'POST',
+  });
+}
+
+// ============ Media API ============
+
+export interface UploadUrlRequest {
+  teamId: string;
+  scenarioId: string;
+  mediaType: 'photo' | 'video';
+  playerId: string;
+}
+
+export interface UploadUrlResponse {
+  uploadUrl: string;
+  blobName: string;
+  expiresAt: string;
+}
+
+export async function getUploadUrl(gameId: string, data: UploadUrlRequest): Promise<UploadUrlResponse> {
+  return apiFetch<UploadUrlResponse>(`/games/${gameId}/videos/upload-url`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export interface RegisterMediaRequest {
+  teamId: string;
+  scenarioId: string;
+  mediaType: 'photo' | 'video';
+  playerId: string;
+  blobName: string;
+  durationSeconds?: number;
+}
+
+export async function registerMedia(gameId: string, data: RegisterMediaRequest): Promise<MediaSubmission> {
+  return apiFetch<MediaSubmission>(`/games/${gameId}/videos`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function fetchMediaSubmissions(
+  gameId: string,
+  options?: { scenarioId?: string; teamId?: string }
+): Promise<MediaSubmission[]> {
+  const params = new URLSearchParams();
+  if (options?.scenarioId) params.append('scenarioId', options.scenarioId);
+  if (options?.teamId) params.append('teamId', options.teamId);
+  const query = params.toString();
+  return apiFetch<MediaSubmission[]>(`/games/${gameId}/videos${query ? `?${query}` : ''}`);
+}
+
+export async function fetchScenarioVideos(gameId: string, scenarioId: string): Promise<MediaSubmission[]> {
+  return apiFetch<MediaSubmission[]>(`/games/${gameId}/videos/${scenarioId}`);
 }
 
 // ============ Scenarios API ============

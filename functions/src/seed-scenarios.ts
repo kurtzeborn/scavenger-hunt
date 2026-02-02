@@ -127,8 +127,8 @@ export const SEED_SCENARIOS: Scenario[] = [
   },
   {
     id: 'gen-06',
-    title: 'Human Punctuation',
-    description: 'Form a human period at a mall',
+    title: 'Human Pyramid',
+    description: 'Form a human pyramid at a mall',
     mediaType: 'photo',
     category: 'general',
     difficulty: 'easy',

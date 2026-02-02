@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
+import { PlayerSessionProvider } from './contexts/PlayerSessionContext';
 import { LandingPage } from './pages/LandingPage';
 import { GamePage } from './pages/GamePage';
 import { DashboardPage } from './pages/DashboardPage';
@@ -20,17 +21,19 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/game/:gameCode" element={<GamePage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/create" element={<CreateGamePage />} />
-            {/* Mock auth routes for local development */}
-            <Route path="/.auth/login/aad" element={<MockAuthPage />} />
-            <Route path="/.auth/logout" element={<MockLogoutPage />} />
-          </Routes>
-        </BrowserRouter>
+        <PlayerSessionProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/game/:gameCode" element={<GamePage />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/create" element={<CreateGamePage />} />
+              {/* Mock auth routes for local development */}
+              <Route path="/.auth/login/aad" element={<MockAuthPage />} />
+              <Route path="/.auth/logout" element={<MockLogoutPage />} />
+            </Routes>
+          </BrowserRouter>
+        </PlayerSessionProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
