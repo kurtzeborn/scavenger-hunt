@@ -1,0 +1,26 @@
+{
+  "name": "scavenger-hunt-functions",
+  "version": "1.0.0",
+  "description": "Azure Functions API for Video Scavenger Hunt",
+  "main": "dist/src/functions/*.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "start": "npm run build && func start",
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
+  "dependencies": {
+    "@azure/data-tables": "^13.3.2",
+    "@azure/functions": "^4.0.0",
+    "@azure/storage-blob": "^12.30.0",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.30",
+    "@types/uuid": "^10.0.0",
+    "azure-functions-core-tools": "^4.x",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  }
+}

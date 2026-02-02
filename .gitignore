@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+*.js.map
+
+# Azure Storage emulator
+.azurite/
+__blobstorage__/
+__queuestorage__/
+__tablestorage__/
+
+# Local settings (contains secrets)
+local.settings.json
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage/

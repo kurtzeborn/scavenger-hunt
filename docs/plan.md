@@ -813,12 +813,16 @@ scavenger-hunt/
 
 ## 15. Development Phases
 
-### Phase 1: Foundation (Week 1-2)
-- [ ] Project setup (React + Vite + Azure Functions)
-- [ ] Basic authentication (Entra ID for game keeper)
-- [ ] Azure Table Storage setup and data models
-- [ ] Game CRUD operations
-- [ ] Scenario library (seed with 20-30 scenarios)
+### Phase 1: Foundation (Week 1-2) ✅ COMPLETE
+- [x] Project setup (React + Vite + TypeScript + Tailwind CSS)
+- [x] Azure Functions setup (Node.js 20 + TypeScript)
+- [x] Basic authentication (Entra ID via SWA, game keeper allowlist)
+- [x] Azure Table Storage setup and data models
+- [x] Game CRUD operations (create, read, update, delete, start)
+- [x] Scenario library (seeded with 23 scenarios across 3 categories)
+- [x] React app shell with routing (Landing, Dashboard, CreateGame, Game pages)
+- [x] Local development environment with WSL support
+- [x] Documentation (DEVELOPMENT.md, copilot-instructions.md)
 
 ### Phase 2: Core Gameplay (Week 3-4)
 - [ ] Player join flow (game code, team selection)
@@ -953,18 +957,3 @@ Logo and icon assets are available in `/logo/`:
 - **Usability**: Player can join and record first video within 2 minutes
 - **Scale**: Support 20 teams × 6 players = 120 concurrent players
 - **Cost**: Stay under $50/month for typical usage
-
----
-
-## 19. Next Steps
-
-1. ✅ Create repository with plan
-2. [ ] Set up project structure (web + functions folders)
-3. [ ] Initialize Azure resources (Table Storage, Blob Storage)
-4. [ ] Implement authentication
-5. [ ] Build game creation flow
-6. [ ] Implement player join experience
-7. [ ] Add video capture and upload
-8. [ ] Build judging experience
-9. [ ] Deploy and test end-to-end
-10. [ ] Implement scheduled cleanup function (timer trigger for 7-day expiration)
