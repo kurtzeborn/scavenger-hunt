@@ -731,6 +731,46 @@ export async function cleanupExpiredGames(timer: Timer): Promise<void> {
 - **CI/CD**: GitHub Actions (SWA auto-generates workflow)
 - **Deploy**: Azure Static Web Apps auto-deploy → vsh.k61.dev
 
+### Testing
+- **Framework**: Vitest (for both frontend and functions)
+- **API Tests**: Unit tests for all Azure Function endpoints
+- **Mocking**: Mock Table Storage and Blob Storage for isolated tests
+- **Coverage**: Aim for 80%+ coverage on API endpoints
+
+**API Test Strategy:**
+```typescript
+// Example: tests/api/games.test.ts
+describe('POST /api/games', () => {
+  it('creates a game when authenticated as game keeper', async () => {
+    const mockContext = createMockContext({ userId: 'keeper@example.com' });
+    const response = await createGame(mockContext, mockRequest);
+    expect(response.status).toBe(201);
+    expect(response.body.id).toMatch(/^[A-Z]{4}$/);  // 4-letter game code
+  });
+
+  it('returns 401 when not authenticated', async () => {
+    const mockContext = createMockContext({ userId: null });
+    const response = await createGame(mockContext, mockRequest);
+    expect(response.status).toBe(401);
+  });
+
+  it('returns 403 when authenticated but not a game keeper', async () => {
+    const mockContext = createMockContext({ userId: 'random@example.com' });
+    const response = await createGame(mockContext, mockRequest);
+    expect(response.status).toBe(403);
+  });
+});
+```
+
+**What to test:**
+| Endpoint | Key Test Cases |
+|----------|----------------|
+| `POST /api/games` | Auth required, game keeper only, generates valid code |
+| `POST /api/games/:id/join` | Valid game code, team creation, player limits |
+| `POST /api/games/:id/videos` | SAS token generation, first-upload-wins, timer grace period |
+| `POST /api/games/:id/bonus` | Game keeper only, one bonus per scenario |
+| `GET /api/me` | Returns auth status and game keeper status |
+
 ---
 
 ## 14. Project Structure
