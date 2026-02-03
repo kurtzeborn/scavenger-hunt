@@ -167,20 +167,17 @@ module functionApp 'br/public:avm/res/web/site:0.15.1' = {
       }
     }
     
-    // Function app configuration
-    configs: [
-      {
-        name: 'appsettings'
-        storageAccountResourceId: storageAccount.outputs.resourceId
-        storageAccountUseIdentityAuthentication: false  // Use connection string for now
-        properties: {
-          FUNCTIONS_EXTENSION_VERSION: '~4'
-          FUNCTIONS_WORKER_RUNTIME: 'node'
-          WEBSITE_NODE_DEFAULT_VERSION: '~20'
-          WEBSITE_RUN_FROM_PACKAGE: '1'
-        }
-      }
-    ]
+    // Storage account for Function App
+    storageAccountResourceId: storageAccount.outputs.resourceId
+    storageAccountUseIdentityAuthentication: false  // Use connection string for now
+    
+    // Function app settings
+    appSettingsKeyValuePairs: {
+      FUNCTIONS_EXTENSION_VERSION: '~4'
+      FUNCTIONS_WORKER_RUNTIME: 'node'
+      WEBSITE_NODE_DEFAULT_VERSION: '~20'
+      WEBSITE_RUN_FROM_PACKAGE: '1'
+    }
   }
 }
 
