@@ -107,13 +107,14 @@ function entityToSubmissionWithSas(entity: MediaSubmissionEntity): MediaSubmissi
   return submission;
 }
 
-// POST /api/games/:id/videos/upload-url - Get a SAS URL for uploading media
-app.http('getUploadUrl', {
+// POST /api/games/:id/videos/upload - Upload media directly (proxied through function)
+// This replaces the SAS URL approach to avoid CORS issues with blob storage
+app.http('uploadMedia', {
   methods: ['POST'],
   authLevel: 'anonymous',
-  route: 'games/{gameId}/videos/upload-url',
+  route: 'games/{gameId}/videos/upload',
   handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
-    // Ensure blob storage is initialized with CORS rules
+    // Ensure blob storage is initialized
     await ensureBlobInitialized();
     
     try {
@@ -126,14 +127,14 @@ app.http('getUploadUrl', {
         };
       }
 
-      const body = await request.json() as {
-        teamId: string;
-        scenarioId: string;
-        mediaType: MediaType;
-        playerId: string;
-      };
+      // Get metadata from query params
+      const teamId = request.query.get('teamId');
+      const scenarioId = request.query.get('scenarioId');
+      const mediaType = request.query.get('mediaType') as MediaType;
+      const playerId = request.query.get('playerId');
+      const durationSeconds = request.query.get('durationSeconds');
 
-      if (!body.teamId || !body.scenarioId || !body.mediaType || !body.playerId) {
+      if (!teamId || !scenarioId || !mediaType || !playerId) {
         return {
           status: 400,
           jsonBody: { error: 'teamId, scenarioId, mediaType, and playerId are required' },
@@ -164,7 +165,7 @@ app.http('getUploadUrl', {
       // Verify team exists and player is on the team
       let teamEntity: TeamEntity;
       try {
-        teamEntity = await teamsTable.getEntity<TeamEntity>(gameId, body.teamId);
+        teamEntity = await teamsTable.getEntity<TeamEntity>(gameId, teamId);
       } catch (error: any) {
         if (error.statusCode === 404) {
           return {
@@ -176,7 +177,7 @@ app.http('getUploadUrl', {
       }
 
       const players = JSON.parse(teamEntity.players || '[]');
-      const playerExists = players.some((p: { id: string }) => p.id === body.playerId);
+      const playerExists = players.some((p: { id: string }) => p.id === playerId);
       if (!playerExists) {
         return {
           status: 403,
@@ -186,16 +187,35 @@ app.http('getUploadUrl', {
 
       // Check if scenario is already completed by this team
       const completedScenarios = JSON.parse(teamEntity.completedScenarios || '[]');
-      if (completedScenarios.includes(body.scenarioId)) {
+      if (completedScenarios.includes(scenarioId)) {
         return {
           status: 400,
           jsonBody: { error: 'This scenario is already completed' },
         };
       }
 
-      // Generate blob name and SAS URL
-      const extension = body.mediaType === 'video' ? 'webm' : 'jpg';
-      const blobName = `${gameId}/${body.teamId}/${body.scenarioId}.${extension}`;
+      // Get the file data from the request body
+      const fileBuffer = Buffer.from(await request.arrayBuffer());
+      
+      if (fileBuffer.length === 0) {
+        return {
+          status: 400,
+          jsonBody: { error: 'No file data provided' },
+        };
+      }
+
+      // Check file size (limit to 50MB)
+      const maxSize = 50 * 1024 * 1024;
+      if (fileBuffer.length > maxSize) {
+        return {
+          status: 413,
+          jsonBody: { error: 'File too large. Maximum size is 50MB.' },
+        };
+      }
+
+      // Generate blob name
+      const extension = mediaType === 'video' ? 'webm' : 'jpg';
+      const blobName = `${gameId}/${teamId}/${scenarioId}.${extension}`;
 
       const container = getMediaContainer();
       
@@ -206,48 +226,62 @@ app.http('getUploadUrl', {
         if (error.statusCode !== 409) throw error;
       }
 
-      // Generate SAS token
-      const { accountName, accountKey } = getStorageCredentials();
-      const sharedKeyCredential = new StorageSharedKeyCredential(accountName, accountKey);
+      // Upload to blob storage
+      const blockBlobClient = container.getBlockBlobClient(blobName);
+      const contentType = mediaType === 'video' ? 'video/webm' : 'image/jpeg';
+      
+      await blockBlobClient.upload(fileBuffer, fileBuffer.length, {
+        blobHTTPHeaders: {
+          blobContentType: contentType,
+        },
+      });
 
-      const startsOn = new Date();
-      const expiresOn = new Date(startsOn.getTime() + 15 * 60 * 1000); // 15 minutes
+      // Create submission record
+      const submissionEntity: MediaSubmissionEntity = {
+        partitionKey: gameId,
+        rowKey: `${teamId}_${scenarioId}`,
+        teamId,
+        scenarioId,
+        uploadedBy: playerId,
+        blobUrl: blobName, // Store just the blob name, generate SAS URLs on read
+        uploadedAt: new Date(),
+        mediaType,
+        status: 'complete' as const,
+        durationSeconds: durationSeconds ? parseInt(durationSeconds, 10) : undefined,
+      };
 
-      const sasToken = generateBlobSASQueryParameters({
-        containerName: 'media',
-        blobName,
-        permissions: BlobSASPermissions.parse('racw'), // read, add, create, write
-        startsOn,
-        expiresOn,
-      }, sharedKeyCredential).toString();
+      await mediaSubmissionsTable.upsertEntity(submissionEntity, 'Replace');
 
-      // Build upload URL using accessible base URL (handles WSL->Windows)
-      const baseUrl = getBlobBaseUrl();
-      const uploadUrl = `${baseUrl}/media/${blobName}?${sasToken}`;
+      // Mark scenario as completed for the team
+      completedScenarios.push(scenarioId);
+      await teamsTable.updateEntity({
+        partitionKey: gameId,
+        rowKey: teamId,
+        completedScenarios: JSON.stringify(completedScenarios),
+      }, 'Merge');
 
       return {
         status: 200,
         jsonBody: {
-          uploadUrl,
+          success: true,
           blobName,
-          expiresAt: expiresOn.toISOString(),
+          message: 'Media uploaded successfully',
         },
       };
     } catch (error: any) {
-      context.error('Failed to generate upload URL:', error);
+      context.error('Failed to upload media:', error);
       return {
         status: 500,
         jsonBody: { 
-          error: 'Failed to generate upload URL',
+          error: 'Failed to upload media',
           details: error?.message || String(error),
-          stack: error?.stack,
         },
       };
     }
   },
 });
 
-// POST /api/games/:id/videos - Register an uploaded media submission
+// POST /api/games/:id/videos - Register an uploaded media submission (legacy - kept for compatibility)
 app.http('registerMedia', {
   methods: ['POST'],
   authLevel: 'anonymous',

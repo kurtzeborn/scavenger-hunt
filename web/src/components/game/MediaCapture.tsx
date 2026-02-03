@@ -11,7 +11,7 @@ import {
   faUpload,
 } from '@fortawesome/free-solid-svg-icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { getUploadUrl, registerMedia } from '../../api';
+import { uploadMedia } from '../../api';
 import { usePlayerSession } from '../../contexts/PlayerSessionContext';
 import type { Game, Scenario } from '../../types';
 
@@ -235,48 +235,14 @@ export function MediaCapture({ game, scenario, onComplete, onCancel }: MediaCapt
 
       setCaptureState('uploading');
 
-      // Get upload URL
-      let uploadUrl: string;
-      let blobName: string;
-      try {
-        const result = await getUploadUrl(game.id, {
-          teamId: session.teamId,
-          scenarioId: scenario.id,
-          mediaType: scenario.mediaType,
-          playerId: session.playerId,
-        });
-        uploadUrl = result.uploadUrl;
-        blobName = result.blobName;
-      } catch (err) {
-        console.error('Failed to get upload URL:', err);
-        throw err;
-      }
-
-      // Upload to blob storage
-      const response = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: {
-          'x-ms-blob-type': 'BlockBlob',
-          'Content-Type': isVideo ? 'video/webm' : 'image/jpeg',
-        },
-        body: mediaBlob,
-      });
-
-      if (!response.ok) {
-        const text = await response.text();
-        console.error('Blob upload failed:', response.status, text);
-        throw new Error('Failed to upload media');
-      }
-
-      // Register the submission
-      await registerMedia(game.id, {
+      // Upload directly to Function App (which saves to blob storage)
+      await uploadMedia(game.id, {
         teamId: session.teamId,
         scenarioId: scenario.id,
         mediaType: scenario.mediaType,
         playerId: session.playerId,
-        blobName,
         durationSeconds: isVideo ? recordingTime : undefined,
-      });
+      }, mediaBlob);
 
       return true;
     },

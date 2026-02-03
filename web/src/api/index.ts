@@ -2,58 +2,20 @@
 
 import type { Game, Scenario, GameConfig, Team, Player, CrewMember, MediaSubmission } from '../types';
 
-// API base URL - defaults to /api for local dev, overridden by env var in production
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
+// API base URL - always /api since SWA linked backend proxies to Function App
+const API_BASE = '/api';
 
-// Cache for the client principal from SWA
-let cachedClientPrincipal: string | null = null;
-
-// Fetch the client principal from SWA's /.auth/me endpoint
-async function fetchClientPrincipal(): Promise<string | null> {
-  // Only fetch from SWA in production (when using external API)
-  if (!import.meta.env.VITE_API_BASE_URL) {
-    return null;
-  }
-
-  try {
-    const response = await fetch('/.auth/me');
-    if (!response.ok) {
-      return null;
-    }
-    const data = await response.json();
-    if (data.clientPrincipal) {
-      // Re-encode as base64 to match the x-ms-client-principal format
-      return btoa(JSON.stringify(data.clientPrincipal));
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-// Get auth header - uses cached client principal or fetches from SWA
-async function getAuthHeader(): Promise<Record<string, string>> {
+// Get auth header for local development (mock auth)
+// In production, SWA linked backend automatically forwards x-ms-client-principal
+function getAuthHeader(): Record<string, string> {
   // For local dev, check mock auth
   const mockPrincipal = localStorage.getItem('mockAuthPrincipal');
   if (mockPrincipal) {
     return { 'x-ms-client-principal': btoa(mockPrincipal) };
   }
-
-  // For production, fetch from SWA if not cached
-  if (cachedClientPrincipal === null) {
-    cachedClientPrincipal = await fetchClientPrincipal() || '';
-  }
   
-  if (cachedClientPrincipal) {
-    return { 'x-ms-client-principal': cachedClientPrincipal };
-  }
-  
+  // In production, SWA handles auth header forwarding automatically
   return {};
-}
-
-// Clear cached auth (call on logout)
-export function clearAuthCache(): void {
-  cachedClientPrincipal = null;
 }
 
 // Generic fetch wrapper with error handling
@@ -61,7 +23,7 @@ async function apiFetch<T>(
   url: string,
   options?: RequestInit
 ): Promise<T> {
-  const authHeaders = await getAuthHeader();
+  const authHeaders = getAuthHeader();
   const response = await fetch(`${API_BASE}${url}`, {
     ...options,
     headers: {
@@ -254,40 +216,53 @@ export async function addCrewMember(
 
 // ============ Media API ============
 
-export interface UploadUrlRequest {
+export interface UploadMediaRequest {
   teamId: string;
   scenarioId: string;
   mediaType: 'photo' | 'video';
   playerId: string;
-}
-
-export interface UploadUrlResponse {
-  uploadUrl: string;
-  blobName: string;
-  expiresAt: string;
-}
-
-export async function getUploadUrl(gameId: string, data: UploadUrlRequest): Promise<UploadUrlResponse> {
-  return apiFetch<UploadUrlResponse>(`/games/${gameId}/videos/upload-url`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-}
-
-export interface RegisterMediaRequest {
-  teamId: string;
-  scenarioId: string;
-  mediaType: 'photo' | 'video';
-  playerId: string;
-  blobName: string;
   durationSeconds?: number;
 }
 
-export async function registerMedia(gameId: string, data: RegisterMediaRequest): Promise<MediaSubmission> {
-  return apiFetch<MediaSubmission>(`/games/${gameId}/videos`, {
-    method: 'POST',
-    body: JSON.stringify(data),
+export interface UploadMediaResponse {
+  success: boolean;
+  blobName: string;
+  message: string;
+}
+
+// Upload media directly to the Function App (proxied to blob storage)
+export async function uploadMedia(
+  gameId: string, 
+  data: UploadMediaRequest, 
+  file: Blob
+): Promise<UploadMediaResponse> {
+  // Build query params for metadata
+  const params = new URLSearchParams({
+    teamId: data.teamId,
+    scenarioId: data.scenarioId,
+    mediaType: data.mediaType,
+    playerId: data.playerId,
   });
+  if (data.durationSeconds !== undefined) {
+    params.set('durationSeconds', data.durationSeconds.toString());
+  }
+
+  const authHeaders = getAuthHeader();
+  const response = await fetch(`${API_BASE}/games/${gameId}/videos/upload?${params}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': data.mediaType === 'video' ? 'video/webm' : 'image/jpeg',
+      ...authHeaders,
+    },
+    body: file,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Upload failed' }));
+    throw new ApiError(error.error || 'Upload failed', response.status);
+  }
+
+  return response.json();
 }
 
 export async function fetchMediaSubmissions(
@@ -326,8 +301,8 @@ export interface MeResponse {
 
 export async function fetchMe(): Promise<MeResponse> {
   // Special case: /api/me returns 200 even for unauthenticated users
-  // Include auth header for both local development and production
-  const authHeaders = await getAuthHeader();
+  // Include auth header for local development (production uses SWA auto-forwarding)
+  const authHeaders = getAuthHeader();
   const response = await fetch(`${API_BASE}/me`, {
     headers: authHeaders,
   });

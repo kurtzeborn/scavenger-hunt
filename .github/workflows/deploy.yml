@@ -11,6 +11,7 @@ env:
   AZURE_RESOURCE_GROUP: rg-vsh-prod
   AZURE_LOCATION: westus2
   FUNCTION_APP_NAME: func-vsh-prod
+  SWA_NAME: swa-vsh-prod
 
 jobs:
   # Validate code before deployment
@@ -85,6 +86,20 @@ jobs:
               AZURE_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }} \
               AZURE_CLIENT_SECRET=${{ secrets.AZURE_CLIENT_SECRET }}
 
+      - name: Link Function App as SWA Backend
+        run: |
+          # Get the subscription ID and Function App resource ID
+          SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+          FUNC_RESOURCE_ID="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/${{ env.AZURE_RESOURCE_GROUP }}/providers/Microsoft.Web/sites/${{ env.FUNCTION_APP_NAME }}"
+          
+          # Link the Function App as a backend (idempotent - won't fail if already linked)
+          az staticwebapp backends link \
+            --name ${{ env.SWA_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --backend-resource-id "$FUNC_RESOURCE_ID" \
+            --backend-region westus2 \
+            2>/dev/null || echo "Backend already linked or linking in progress"
+
   # Deploy Functions to Azure Function App
   deploy-functions:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -138,8 +153,7 @@ jobs:
 
       - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
-        env:
-          VITE_API_BASE_URL: https://${{ env.FUNCTION_APP_NAME }}.azurewebsites.net/api
+        # Note: No VITE_API_BASE_URL needed - SWA linked backend proxies /api/* to Function App
         with:
           azure_static_web_apps_api_token: ${{ steps.get-token.outputs.token }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}

@@ -59,6 +59,7 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.19.0' = {
     }
     
     // Blob services with containers and lifecycle policy
+    // Note: No CORS needed - uploads are proxied through the Function App
     blobServices: {
       containers: [
         {
@@ -66,24 +67,6 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.19.0' = {
           publicAccess: 'None'
         }
       ]
-      // CORS for direct browser uploads - include both SWA hostname and custom domain
-      corsRules: concat([
-        {
-          allowedOrigins: ['https://*.azurestaticapps.net']
-          allowedMethods: ['GET', 'HEAD', 'PUT', 'POST', 'OPTIONS', 'DELETE']
-          allowedHeaders: ['*']
-          exposedHeaders: ['*']
-          maxAgeInSeconds: 3600
-        }
-      ], customDomain != '' ? [
-        {
-          allowedOrigins: ['https://${customDomain}']
-          allowedMethods: ['GET', 'HEAD', 'PUT', 'POST', 'OPTIONS', 'DELETE']
-          allowedHeaders: ['*']
-          exposedHeaders: ['*']
-          maxAgeInSeconds: 3600
-        }
-      ] : [])
     }
     
     // Table services for game data
@@ -124,7 +107,7 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.19.0' = {
 }
 
 // ============================================================================
-// Azure Static Web App
+// Azure Static Web App (Standard tier for linked backends)
 // ============================================================================
 
 module staticSite 'br/public:avm/res/web/static-site:0.7.0' = {
@@ -133,10 +116,10 @@ module staticSite 'br/public:avm/res/web/static-site:0.7.0' = {
     name: staticSiteName
     location: swaLocation
     tags: tags
-    sku: 'Free'
+    sku: 'Standard'  // Required for linked backends feature
     
-    // Note: No api_location - we use a separate Function App
-    // App settings for auth are configured via GitHub Actions
+    // Note: Linked backend is configured via Azure CLI after deployment
+    // This allows SWA to proxy /api/* to the Function App with auth headers
     
     // Custom domain (optional - requires DNS validation first)
     customDomains: customDomain != '' ? [customDomain] : []
@@ -177,20 +160,11 @@ module functionApp 'br/public:avm/res/web/site:0.15.1' = {
     }
     
     // Site config for Node.js 20 on Linux
+    // Note: CORS not needed - SWA Standard with linked backend proxies all /api/* requests
     siteConfig: {
       linuxFxVersion: 'NODE|20'
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
-      cors: {
-        allowedOrigins: concat(
-          [
-            'https://${staticSite.outputs.defaultHostname}'
-            'https://localhost:5173'
-          ],
-          customDomain != '' ? ['https://${customDomain}'] : []
-        )
-        supportCredentials: true
-      }
     }
     
     // Storage account for Function App

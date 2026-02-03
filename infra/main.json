@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.40.2.10011",
-      "templateHash": "2526357784503909010"
+      "templateHash": "6049569205275173762"
     }
   },
   "parameters": {
@@ -113,8 +113,7 @@
                   "name": "media",
                   "publicAccess": "None"
                 }
-              ],
-              "corsRules": "[concat(createArray(createObject('allowedOrigins', createArray('https://*.azurestaticapps.net'), 'allowedMethods', createArray('GET', 'HEAD', 'PUT', 'POST', 'OPTIONS', 'DELETE'), 'allowedHeaders', createArray('*'), 'exposedHeaders', createArray('*'), 'maxAgeInSeconds', 3600)), if(not(equals(parameters('customDomain'), '')), createArray(createObject('allowedOrigins', createArray(format('https://{0}', parameters('customDomain'))), 'allowedMethods', createArray('GET', 'HEAD', 'PUT', 'POST', 'OPTIONS', 'DELETE'), 'allowedHeaders', createArray('*'), 'exposedHeaders', createArray('*'), 'maxAgeInSeconds', 3600)), createArray()))]"
+              ]
             }
           },
           "tableServices": "[if(parameters('resetData'), createObject('value', createObject('tables', createArray(createObject('name', 'Games'), createObject('name', 'Teams'), createObject('name', 'Scenarios'), createObject('name', 'GameKeepers'), createObject('name', 'MediaSubmissions')))), createObject('value', createObject()))]",
@@ -5836,7 +5835,7 @@
             "value": "[parameters('tags')]"
           },
           "sku": {
-            "value": "Free"
+            "value": "Standard"
           },
           "customDomains": "[if(not(equals(parameters('customDomain'), '')), createObject('value', createArray(parameters('customDomain'))), createObject('value', createArray()))]"
         },
@@ -8331,11 +8330,7 @@
             "value": {
               "linuxFxVersion": "NODE|20",
               "ftpsState": "Disabled",
-              "minTlsVersion": "1.2",
-              "cors": {
-                "allowedOrigins": "[concat(createArray(format('https://{0}', reference(resourceId('Microsoft.Resources/deployments', 'staticSiteDeployment'), '2025-04-01').outputs.defaultHostname.value), 'https://localhost:5173'), if(not(equals(parameters('customDomain'), '')), createArray(format('https://{0}', parameters('customDomain'))), createArray()))]",
-                "supportCredentials": true
-              }
+              "minTlsVersion": "1.2"
             }
           },
           "storageAccountResourceId": {
@@ -13769,7 +13764,6 @@
       },
       "dependsOn": [
         "[resourceId('Microsoft.Resources/deployments', 'appServicePlanDeployment')]",
-        "[resourceId('Microsoft.Resources/deployments', 'staticSiteDeployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'storageAccountDeployment')]"
       ]
     }
