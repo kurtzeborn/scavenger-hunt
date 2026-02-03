@@ -154,12 +154,6 @@ export function ResultsView({ game, isGameKeeper }: ResultsViewProps) {
     }
   };
 
-  // Skip reveal animation
-  const skipReveal = () => {
-    setRevealedCount(teams.length);
-    setIsRevealing(false);
-  };
-
   // Helper to check if a team is in first place
   const isWinner = (score: TeamScore) => score.position === 1;
   const winners = teamScores.filter(isWinner);
@@ -224,18 +218,6 @@ export function ResultsView({ game, isGameKeeper }: ResultsViewProps) {
           </div>
         </div>
       </header>
-
-      {/* Skip button during reveal */}
-      {isRevealing && (
-        <div className="text-center py-4">
-          <button
-            onClick={skipReveal}
-            className="text-white/60 hover:text-white/80 text-sm underline"
-          >
-            Skip animation
-          </button>
-        </div>
-      )}
 
       {/* Results List */}
       <main className="max-w-2xl mx-auto px-4 py-6">
