@@ -861,42 +861,46 @@ scavenger-hunt/
 - [x] Video upload to Blob Storage
 - [x] Scenario completion tracking
 
-### Phase 2.1: Crew Members & Late Joining
+### Phase 2.1: Crew Members & Late Joining ✅
 Support for team members who participate but don't have their own device, plus allowing players to join teams after the game has started.
 
 **Backend - Crew Members:**
-- [ ] Add `crewMembers` array to Team entity in Table Storage
-- [ ] Create `POST /api/games/:id/teams/:teamId/crew` endpoint
+- [x] Add `crewMembers` array to Team entity in Table Storage
+- [x] Create `POST /api/games/:id/teams/:teamId/crew` endpoint
   - Validates: game exists, team exists, caller is team member, team not at 6-member limit
   - Adds crew member with generated ID, display name, addedBy, addedAt
   - Returns updated team
-- [ ] Update `GET /api/games/:id/teams` to include crew members in response
-- [ ] Enforce combined player + crew limit of 6 per team
+- [x] Update `GET /api/games/:id/teams` to include crew members in response
+- [x] Enforce combined player + crew limit of 6 per team
 
 **Backend - Late Player Joining:**
-- [ ] Update `POST /api/games/:id/join` to allow joins when game status is `active` or `paused`
+- [x] Update `POST /api/games/:id/join` to allow joins when game status is `active` or `paused`
   - Reject if status is `judging` or `complete`
   - Reject if trying to create a new team (existing teams only after game starts)
   - Only show teams with open slots (< 6 members)
   - If all teams are full, return error with friendly message
 
 **Frontend - Crew Members:**
-- [ ] Add "Add Crew Member" button in team roster (lobby and active game)
-- [ ] Simple modal: enter crew member name (max 20 chars)
-- [ ] Display crew members in team roster with distinct icon (e.g., 👤 vs 📱)
-- [ ] Show crew members in game keeper's lobby view
-- [ ] Update team member count display to show "X players, Y crew"
+- [x] Add "Add Crew Member" button in team roster (lobby only - active game deferred)
+- [x] Simple modal: enter crew member name (max 20 chars)
+- [x] Display crew members in team roster with distinct icon (👤 vs 📱)
+- [x] Show crew members in game keeper's lobby view
+- [x] Update team member count display to show "X/6 members"
 
 **Frontend - Late Player Joining:**
-- [ ] Update JoinGameFlow to detect game state
-- [ ] If game is `active` or `paused`:
+- [x] Update JoinGameFlow to detect game state
+- [x] If game is `active` or `paused`:
   - Show message: "Game in progress! Join an existing team to jump in."
   - Hide "Create New Team" option
   - Only display teams with available slots
   - If no teams have slots: "Sorry, all teams are full."
-- [ ] If game is `judging` or `complete`:
+- [x] If game is `judging` or `complete`:
   - Show message: "This game has ended."
   - No join options available
+
+**Additional UI Improvements:**
+- [x] Game keeper view: home button to return to dashboard
+- [x] Game keeper view: show total uploads counter across all teams
 
 **UX Considerations:**
 - Crew members cannot be removed once added
