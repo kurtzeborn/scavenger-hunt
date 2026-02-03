@@ -1,0 +1,200 @@
+name: Deploy to Azure
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  AZURE_RESOURCE_GROUP: rg-vsh-prod
+  AZURE_LOCATION: westus2
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Build web frontend
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install web dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Build web app
+        working-directory: web
+        run: npm run build
+
+      - name: Lint web app
+        working-directory: web
+        run: npm run lint
+
+      # Build functions
+      - name: Install functions dependencies
+        working-directory: functions
+        run: npm ci
+
+      - name: Build functions
+        working-directory: functions
+        run: npm run build
+
+      # Upload artifacts for deployment
+      - name: Upload web build
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: web/dist
+
+      - name: Upload functions build
+        uses: actions/upload-artifact@v4
+        with:
+          name: functions-build
+          path: |
+            functions/dist
+            functions/host.json
+            functions/package.json
+            functions/package-lock.json
+
+  deploy-infra:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: build
+    outputs:
+      staticSiteDefaultHostname: ${{ steps.deploy.outputs.staticSiteDefaultHostname }}
+      storageAccountName: ${{ steps.deploy.outputs.storageAccountName }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Create Resource Group
+        run: |
+          az group create \
+            --name ${{ env.AZURE_RESOURCE_GROUP }} \
+            --location ${{ env.AZURE_LOCATION }} \
+            --tags project=video-scavenger-hunt environment=prod
+
+      - name: Deploy Bicep
+        id: deploy
+        uses: azure/arm-deploy@v2
+        with:
+          resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP }}
+          template: ./infra/main.bicep
+          parameters: >
+            environment=prod
+            customDomain=vsh.k61.dev
+          failOnStdErr: false
+
+      - name: Configure App Settings
+        if: success()
+        run: |
+          # Get Static Web App name
+          SWA_NAME=$(az staticwebapp list --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query "[0].name" -o tsv)
+          
+          # Set Entra ID credentials if provided
+          if [ -n "${{ secrets.AZURE_CLIENT_ID }}" ]; then
+            az staticwebapp appsettings set \
+              --name $SWA_NAME \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --setting-names \
+                AZURE_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }} \
+                AZURE_CLIENT_SECRET=${{ secrets.AZURE_CLIENT_SECRET }}
+          fi
+
+  deploy-app:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: [build, deploy-infra]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download web build
+        uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: web/dist
+
+      - name: Download functions build
+        uses: actions/download-artifact@v4
+        with:
+          name: functions-build
+          path: functions
+
+      - name: Install functions production dependencies
+        working-directory: functions
+        run: npm ci --omit=dev
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Get SWA deployment token
+        id: get-token
+        run: |
+          SWA_NAME=$(az staticwebapp list --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query "[0].name" -o tsv)
+          TOKEN=$(az staticwebapp secrets list --name $SWA_NAME --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query "properties.apiKey" -o tsv)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Deploy to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.get-token.outputs.token }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: 'upload'
+          app_location: 'web/dist'
+          api_location: 'functions'
+          output_location: ''
+          skip_app_build: true
+          skip_api_build: true
+
+  # PR preview (no infrastructure changes)
+  preview:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download web build
+        uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: web/dist
+
+      - name: Download functions build
+        uses: actions/download-artifact@v4
+        with:
+          name: functions-build
+          path: functions
+
+      - name: Install functions production dependencies
+        working-directory: functions
+        run: npm ci --omit=dev
+
+      # Note: For PR previews, you need the deployment token as a secret
+      # This will create a staging environment for the PR
+      - name: Deploy PR Preview
+        if: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN != '' }}
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: 'upload'
+          app_location: 'web/dist'
+          api_location: 'functions'
+          output_location: ''
+          skip_app_build: true
+          skip_api_build: true
