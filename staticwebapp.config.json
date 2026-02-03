@@ -7,15 +7,11 @@
     {
       "route": "/.auth/logout",
       "rewrite": "/.auth/logout"
-    },
-    {
-      "route": "/*",
-      "rewrite": "/index.html"
     }
   ],
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/.auth/*", "/assets/*"]
+    "exclude": ["/.auth/*", "/assets/*", "*.js", "*.css", "*.svg", "*.png", "*.jpg", "*.ico"]
   },
   "responseOverrides": {
     "401": {
