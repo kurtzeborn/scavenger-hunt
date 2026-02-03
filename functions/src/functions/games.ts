@@ -689,13 +689,17 @@ app.http('downloadMedia', {
       const contentType = response.headers.get('content-type') || 'application/octet-stream';
       const buffer = await response.arrayBuffer();
 
+      // Encode filename for Content-Disposition header (RFC 5987)
+      const encodedFilename = encodeURIComponent(filename).replace(/['()]/g, escape);
+
       return {
         status: 200,
         body: new Uint8Array(buffer),
         headers: {
           'Content-Type': contentType,
-          'Content-Disposition': `attachment; filename="${filename}"`,
+          'Content-Disposition': `attachment; filename="${filename}"; filename*=UTF-8''${encodedFilename}`,
           'Content-Length': buffer.byteLength.toString(),
+          'X-Content-Type-Options': 'nosniff',
         },
       };
     } catch (error) {

@@ -204,10 +204,10 @@ export function ResultsView({ game, isGameKeeper }: ResultsViewProps) {
               )}
             </div>
             {/* Center - title */}
-            <div className="flex-1 flex items-center justify-center gap-3">
-              <FontAwesomeIcon icon={faTrophy} className="text-yellow-400 text-xl" />
-              <h1 className="text-xl font-bold">Final Results</h1>
-              <FontAwesomeIcon icon={faTrophy} className="text-yellow-400 text-xl" />
+            <div className="flex-1 flex items-center justify-center gap-2 sm:gap-3">
+              <FontAwesomeIcon icon={faTrophy} className="text-yellow-400 text-lg sm:text-xl" />
+              <h1 className="text-lg sm:text-xl font-bold whitespace-nowrap">Final Results</h1>
+              <FontAwesomeIcon icon={faTrophy} className="text-yellow-400 text-lg sm:text-xl" />
             </div>
             {/* Right side - fixed width for centering */}
             <div className="w-24 flex-shrink-0 flex justify-end">

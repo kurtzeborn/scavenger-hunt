@@ -227,21 +227,8 @@ export function JudgingView({ game, isGameKeeper }: JudgingViewProps) {
               </p>
             </div>
 
-            {/* Right: Finish button */}
-            <div>
-              {isLastScenario ? (
-                <button
-                  onClick={handleFinishJudging}
-                  disabled={completeMutation.isPending}
-                  className="bg-green-500 hover:bg-green-600 disabled:bg-green-400 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
-                >
-                  <FontAwesomeIcon icon={faFlag} />
-                  {completeMutation.isPending ? 'Finishing...' : 'Finish'}
-                </button>
-              ) : (
-                <div className="w-20" /> // Placeholder for alignment
-              )}
-            </div>
+            {/* Right: Placeholder for alignment */}
+            <div className="w-12" />
           </div>
         </div>
       </header>
@@ -409,18 +396,24 @@ export function JudgingView({ game, isGameKeeper }: JudgingViewProps) {
             ))}
           </div>
 
-          <button
-            onClick={goToNext}
-            disabled={isLastScenario}
-            className={`flex items-center gap-2 py-3 px-6 rounded-lg font-medium transition-colors ${
-              isLastScenario
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-purple-600 text-white hover:bg-purple-700 shadow'
-            }`}
-          >
-            Next
-            <FontAwesomeIcon icon={faChevronRight} />
-          </button>
+          {isLastScenario ? (
+            <button
+              onClick={handleFinishJudging}
+              disabled={completeMutation.isPending}
+              className="flex items-center gap-2 py-3 px-6 rounded-lg font-medium transition-colors bg-green-500 hover:bg-green-600 disabled:bg-green-400 text-white shadow"
+            >
+              <FontAwesomeIcon icon={faFlag} />
+              {completeMutation.isPending ? 'Finishing...' : 'Finish'}
+            </button>
+          ) : (
+            <button
+              onClick={goToNext}
+              className="flex items-center gap-2 py-3 px-6 rounded-lg font-medium transition-colors bg-purple-600 text-white hover:bg-purple-700 shadow"
+            >
+              Next
+              <FontAwesomeIcon icon={faChevronRight} />
+            </button>
+          )}
         </div>
       </main>
     </div>
