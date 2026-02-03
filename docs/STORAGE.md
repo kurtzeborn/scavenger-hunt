@@ -8,10 +8,16 @@ The application uses two types of Azure Storage:
 - **Azure Table Storage** - NoSQL key-value store for game state, teams, scenarios, and metadata
 - **Azure Blob Storage** - Object storage for photos and videos uploaded by players
 
+All storage access is through the Azure Functions API, which is linked as a backend to the Static Web App.
+
 ```mermaid
 flowchart TB
+    subgraph "Static Web App"
+        SPA["React SPA"]
+    end
+    
     subgraph "Azure Functions API"
-        API["HTTP Endpoints"]
+        API["HTTP Endpoints<br/>/api/*"]
     end
 
     subgraph "Table Storage"
@@ -33,6 +39,7 @@ flowchart TB
         end
     end
 
+    SPA -->|"Linked Backend"| API
     API --> Games
     API --> Teams
     API --> Scenarios
@@ -149,46 +156,43 @@ media/
 
 ### Upload Flow
 
+Media uploads are proxied through the Function App for authentication validation:
+
 ```mermaid
 sequenceDiagram
     participant Player
+    participant SWA as Static Web App
     participant API as Azure Functions
     participant Blob as Blob Storage
     participant Table as Table Storage
 
-    Player->>API: POST /api/games/:id/videos/upload-url
-    API->>API: Generate SAS token (write-only, 5 min expiry)
-    API-->>Player: Return SAS URL
-
-    Player->>Blob: PUT blob (direct upload with SAS)
-    Blob-->>Player: 201 Created
-
-    Player->>API: POST /api/games/:id/videos (notify complete)
+    Player->>SWA: POST /api/games/:id/videos/upload
+    Note over SWA: Auth header forwarded automatically
+    SWA->>API: Forward request with x-ms-client-principal
+    API->>API: Validate game, team, player
+    API->>Blob: Upload blob directly
+    Blob-->>API: 201 Created
     API->>Table: Create MediaSubmission record
     API->>Table: Add scenarioId to team.completedScenarios
-    API-->>Player: 201 Success
+    API-->>SWA: 201 Success with blob URL
+    SWA-->>Player: 201 Success
 ```
+
+**Why Proxy Through Function App?**
+- Authentication is validated server-side before upload
+- No CORS configuration needed on blob storage
+- SAS tokens not exposed to client
+- Single API call instead of multi-step flow
 
 ### SAS Token Security
 
+SAS tokens are only used for download (viewing media in judging/gallery):
+
 | Token Type | Purpose | Permissions | Expiry |
 |------------|---------|-------------|--------|
-| Upload | Player uploads media | Write only | 5 minutes |
 | Download | View media in judging/gallery | Read only | 1 hour |
 
-### CORS Configuration
-
-Blob Storage CORS is configured programmatically on startup:
-
-```typescript
-{
-  allowedOrigins: '*',  // Dev: all origins; Prod: restrict to domain
-  allowedMethods: 'GET,HEAD,PUT,POST,DELETE,OPTIONS',
-  allowedHeaders: '*',
-  exposedHeaders: '*',
-  maxAgeInSeconds: 3600
-}
-```
+*Note: Uploads no longer use SAS tokens - they are proxied through the Function App.*
 
 ---
 

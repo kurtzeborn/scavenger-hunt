@@ -99,10 +99,17 @@ Mobile-first responsive web app using modern browser APIs.
 
 ```mermaid
 flowchart LR
+    subgraph Cloudflare
+        DNS["DNS<br/>vsh.k61.dev"]
+    end
+    
     subgraph Azure["Azure"]
-        subgraph SWA["Static Web Apps (Free)"]
+        subgraph SWA["Static Web Apps (Standard ~$9/mo)"]
             PWA["React SPA / PWA<br/>vsh.k61.dev"]
-            Functions["Linked Functions<br/>• Game management API<br/>• Video upload (SAS tokens)<br/>• Scoreboard API"]
+        end
+        
+        subgraph Functions["Azure Functions (Consumption)"]
+            API["API Endpoints<br/>• Game management<br/>• Media upload/download<br/>• Scoreboard"]
         end
         
         subgraph Data["Data Layer"]
@@ -113,17 +120,20 @@ flowchart LR
         EntraID["Entra ID<br/>(Game Keeper Auth)"]
     end
     
-    PWA --> Functions
-    Functions --> Tables
-    Functions --> Blob
-    SWA -.-> EntraID
+    DNS --> SWA
+    SWA -->|"Linked Backend<br/>/api/* proxy"| Functions
+    SWA -.->|"Auth"| EntraID
+    API --> Tables
+    API --> Blob
 ```
 
-**Why Azure Static Web Apps?**
-- Built-in Entra ID authentication (zero-code config for game keeper login)
-- Integrated API routing (no CORS headaches - frontend and API on same domain)
-- Free tier: 100GB bandwidth, 2 custom domains
-- Simpler management with everything in Azure
+**Architecture Notes:**
+- **SWA Standard Tier** - Required for linked backends feature (~$9/month)
+- **Linked Backend** - SWA proxies all `/api/*` requests to the Function App
+- **Auth Header Forwarding** - SWA automatically forwards `x-ms-client-principal` to Function App
+- **No CORS Required** - All traffic flows through SWA (same origin)
+- **Media Uploads** - Proxied through Function App (not direct to blob) for auth validation
+- **Cloudflare DNS** - CNAME pointing to SWA hostname (proxy disabled for SSL compatibility)
 
 *Note: SignalR omitted from MVP - using polling for real-time updates instead.*
 
@@ -135,8 +145,8 @@ flowchart LR
 
 | Resource | Purpose | Pricing Model | Estimated Monthly Cost |
 |----------|---------|---------------|------------------------|
-| **Azure Static Web Apps (Free)** | Host React PWA + built-in auth | Free tier | $0.00 |
-| **Azure Functions (via SWA)** | API endpoints | Included with SWA | $0.00 |
+| **Azure Static Web Apps (Standard)** | Host React PWA + linked backend | Standard tier | $9.00 |
+| **Azure Functions (Consumption)** | API endpoints | Pay-per-execution | < $0.01 |
 | **Azure Table Storage** | Games, teams, scenarios, scores | $0.00036/10K transactions + $0.045/GB | < $0.01 |
 | **Azure Blob Storage** | Photos and videos | $0.02/GB stored + $0.004/10K operations | $0.02 - $0.10 |
 | **Entra ID (for Game Keeper)** | Authentication | Free (included with Azure) | $0.00 |
@@ -188,11 +198,13 @@ flowchart LR
 
 | | Monthly | Annual |
 |-|---------|--------|
-| **Minimum (personal use)** | $0.05 | $0.60 |
-| **Typical (monthly events)** | $0.10 | $1.20 |
-| **Maximum (heavy use, no SignalR)** | $0.25 | $3.00 |
+| **Minimum (personal use)** | ~$9.05 | ~$109 |
+| **Typical (monthly events)** | ~$9.10 | ~$110 |
+| **Maximum (heavy use)** | ~$9.25 | ~$111 |
 
-**Bottom line: This app costs less than a cup of coffee per year to run.**
+**Bottom line: The SWA Standard tier (~$9/month) is the primary cost. Storage costs are negligible.**
+
+*Note: SWA Standard is required for the linked backend feature, which enables seamless API proxying and automatic auth header forwarding.*
 
 ---
 
@@ -333,13 +345,14 @@ GET    /api/games/:id/teams          Get all teams and completion counts
 POST   /api/games/:id/teams/:teamId/crew  Add crew member (teammate without phone)
 ```
 
-### Videos
+### Media Upload/Download
 ```
-POST   /api/games/:id/videos/upload-url   Get SAS URL for upload
-POST   /api/games/:id/videos              Register uploaded video
-GET    /api/games/:id/videos              Get all videos (judging phase)
+POST   /api/games/:id/videos/upload       Upload media file (proxied through Function App)
+GET    /api/games/:id/videos              Get all videos (judging phase, returns SAS URLs)
 GET    /api/games/:id/videos/:scenarioId  Get videos for specific scenario
 ```
+
+*Note: Uploads are proxied through the Function App for authentication validation. The API returns signed download URLs for viewing.*
 
 ### Scoring (Game Keeper Only)
 ```
@@ -748,7 +761,7 @@ Use Azure Blob Storage Lifecycle Management:
       "definition": {
         "filters": {
           "blobTypes": ["blockBlob"],
-          "prefixMatch": ["videos/"]
+          "prefixMatch": ["media/"]
         },
         "actions": {
           "baseBlob": {
@@ -817,11 +830,11 @@ export async function cleanupExpiredGames(timer: Timer): Promise<void> {
 - **Hosting**: Azure Static Web Apps
 
 ### Backend
-- **Runtime**: Azure Functions (Node.js 20, TypeScript) - linked to SWA
+- **Runtime**: Azure Functions (Node.js 20, TypeScript) - standalone Consumption plan
+- **API Proxy**: SWA Standard with linked backend (auto-forwards auth headers)
 - **Database**: Azure Table Storage (simple key-value, ultra low cost)
-- **Storage**: Azure Blob Storage
-- **Auth**: Azure Entra ID (built-in via SWA)
-- **Real-time**: Polling initially, SignalR later
+- **Storage**: Azure Blob Storage (uploads proxied through Function App)
+- **Auth**: Azure Entra ID (via SWA built-in auth)
 
 ### DevOps
 - **Repo**: GitHub (kurtzeborn/scavenger-hunt)
@@ -1033,9 +1046,19 @@ Support for team members who participate but don't have their own device, plus a
 - 60-second grace period for in-progress uploads
 - GET /api/games/:id/scores endpoint (scores calculated client-side from teams + game data)
 
-### Phase 4: Polish & Deployment (Week 6)
+### Phase 4: Polish & Deployment (Week 6) ✅ COMPLETE
 
-**Scenario Management:**
+**Deployment (Complete):**
+- [x] Azure Static Web Apps (Standard tier) deployment
+- [x] Azure Functions (Consumption plan) deployment
+- [x] Linked backend configuration (SWA proxies /api/* to Function App)
+- [x] Configure Entra ID authentication
+- [x] Custom domain setup (vsh.k61.dev via Cloudflare DNS)
+- [x] Blob lifecycle policy (7-day auto-delete)
+- [x] GitHub Actions CI/CD pipeline
+- [x] Media upload proxied through Function App
+
+**Scenario Management (Deferred to Phase 5):**
 - [ ] `POST /api/scenarios` - Create new scenario (game keeper only)
 - [ ] `PUT /api/scenarios/:id` - Update existing scenario
 - [ ] `DELETE /api/scenarios/:id` - Delete scenario (block if used in active games)
@@ -1043,13 +1066,10 @@ Support for team members who participate but don't have their own device, plus a
 - [ ] Add/Edit scenario modal with form validation
 - [ ] Delete confirmation with usage check
 
-**Deployment & Polish:**
+**Polish (Deferred to Phase 5):**
 - [ ] PWA manifest and service worker
 - [ ] QR code generation for game codes
 - [ ] Responsive design polish
-- [ ] Azure Static Web Apps deployment
-- [ ] Configure Entra ID authentication
-- [ ] Blob lifecycle rules
 - [ ] End-to-end testing
 
 ### Phase 5: Future Enhancements
