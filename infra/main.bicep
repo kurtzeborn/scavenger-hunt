@@ -1,5 +1,5 @@
 // Video Scavenger Hunt - Azure Infrastructure
-// Deploys: Azure Static Web App, Storage Account (Blob + Table), Lifecycle Policy
+// Deploys: Azure Static Web App, Azure Functions, Storage Account (Blob + Table), Lifecycle Policy
 
 targetScope = 'resourceGroup'
 
@@ -32,6 +32,8 @@ param tags object = {
 
 var resourceSuffix = environment == 'prod' ? '-prod' : '-${environment}'
 var staticSiteName = 'swa-vsh${resourceSuffix}'
+var functionAppName = 'func-vsh${resourceSuffix}'
+var appServicePlanName = 'asp-vsh${resourceSuffix}'
 var storageAccountName = 'stvsh${uniqueString(resourceGroup().id)}${environment}'
 
 // ============================================================================
@@ -110,11 +112,75 @@ module staticSite 'br/public:avm/res/web/static-site:0.7.0' = {
     tags: tags
     sku: 'Free'
     
-    // Note: App settings (including storage connection string) are set 
-    // via GitHub Actions after deployment to avoid Bicep secure string limitations
+    // Note: No api_location - we use a separate Function App
+    // App settings for auth are configured via GitHub Actions
     
     // Custom domain (optional - requires DNS validation first)
     customDomains: customDomain != '' ? [customDomain] : []
+  }
+}
+
+// ============================================================================
+// Azure Functions (Consumption Plan)
+// ============================================================================
+
+module appServicePlan 'br/public:avm/res/web/serverfarm:0.4.1' = {
+  name: 'appServicePlanDeployment'
+  params: {
+    name: appServicePlanName
+    location: location
+    tags: tags
+    kind: 'linux'
+    reserved: true  // Required for Linux
+    skuName: 'Y1'   // Consumption plan
+    skuCapacity: 0  // Consumption plan
+    zoneRedundant: false
+  }
+}
+
+module functionApp 'br/public:avm/res/web/site:0.15.1' = {
+  name: 'functionAppDeployment'
+  params: {
+    name: functionAppName
+    location: location
+    tags: tags
+    kind: 'functionapp,linux'
+    serverFarmResourceId: appServicePlan.outputs.resourceId
+    httpsOnly: true
+    
+    // System-assigned managed identity for secure storage access
+    managedIdentities: {
+      systemAssigned: true
+    }
+    
+    // Site config for Node.js 20 on Linux
+    siteConfig: {
+      linuxFxVersion: 'NODE|20'
+      ftpsState: 'Disabled'
+      minTlsVersion: '1.2'
+      cors: {
+        allowedOrigins: [
+          'https://${staticSite.outputs.defaultHostname}'
+          customDomain != '' ? 'https://${customDomain}' : 'https://localhost:5173'
+        ]
+        supportCredentials: true
+      }
+    }
+    
+    // Function app configuration
+    configs: [
+      {
+        name: 'appsettings'
+        storageAccountResourceId: storageAccount.outputs.resourceId
+        storageAccountUseIdentityAuthentication: false  // Use connection string for now
+        properties: {
+          FUNCTIONS_EXTENSION_VERSION: '~4'
+          FUNCTIONS_WORKER_RUNTIME: 'node'
+          WEBSITE_NODE_DEFAULT_VERSION: '~20'
+          WEBSITE_RUN_FROM_PACKAGE: '1'
+        }
+      }
+    ]
   }
 }
 
@@ -130,6 +196,15 @@ output staticSiteDefaultHostname string = staticSite.outputs.defaultHostname
 
 @description('Static Web App resource ID')
 output staticSiteResourceId string = staticSite.outputs.resourceId
+
+@description('Function App name')
+output functionAppName string = functionApp.outputs.name
+
+@description('Function App default hostname')
+output functionAppHostname string = functionApp.outputs.defaultHostname
+
+@description('Function App resource ID')
+output functionAppResourceId string = functionApp.outputs.resourceId
 
 @description('Storage Account name')
 output storageAccountName string = storageAccount.outputs.name

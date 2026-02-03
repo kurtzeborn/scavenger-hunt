@@ -2,7 +2,8 @@
 
 import type { Game, Scenario, GameConfig, Team, Player, CrewMember, MediaSubmission } from '../types';
 
-const API_BASE = '/api';
+// API base URL - defaults to /api for local dev, overridden by env var in production
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
 // Get mock auth header for local development
 function getMockAuthHeader(): Record<string, string> {

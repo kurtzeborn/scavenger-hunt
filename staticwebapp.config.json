@@ -1,10 +1,6 @@
 {
   "routes": [
     {
-      "route": "/api/*",
-      "allowedRoles": ["anonymous", "authenticated"]
-    },
-    {
       "route": "/.auth/login/aad",
       "rewrite": "/.auth/login/aad"
     },
@@ -19,7 +15,7 @@
   ],
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/api/*", "/.auth/*", "/assets/*"]
+    "exclude": ["/.auth/*", "/assets/*"]
   },
   "responseOverrides": {
     "401": {
@@ -37,8 +33,5 @@
         }
       }
     }
-  },
-  "platform": {
-    "apiRuntime": "node:20"
   }
 }
