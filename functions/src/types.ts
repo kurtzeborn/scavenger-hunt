@@ -48,6 +48,14 @@ export interface Player {
   joinedAt: Date;
 }
 
+// Crew member (teammate without a phone)
+export interface CrewMember {
+  id: string; // Generated ID
+  displayName: string; // Max 20 chars
+  addedBy: string; // Player ID who added them
+  addedAt: Date;
+}
+
 // Team entity
 export interface Team {
   id: string;
@@ -55,6 +63,7 @@ export interface Team {
   name: string; // Max 20 chars
   color: string; // Auto-assigned from palette
   players: Player[];
+  crewMembers: CrewMember[]; // Team members without phones
   completedScenarios: string[]; // Scenario IDs
 }
 
@@ -151,6 +160,7 @@ export interface TeamEntity {
   name: string;
   color: string;
   players: string; // JSON serialized Player[]
+  crewMembers: string; // JSON serialized CrewMember[]
   completedScenarios: string; // JSON serialized string[]
 }
 

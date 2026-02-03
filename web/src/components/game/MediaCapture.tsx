@@ -111,6 +111,17 @@ export function MediaCapture({ game, scenario, onComplete, onCancel }: MediaCapt
     setFacingMode((prev) => (prev === 'user' ? 'environment' : 'user'));
   };
 
+  // Stop Recording - declared before startRecording so it can be referenced
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
   // Video Recording
   const startRecording = useCallback(() => {
     if (!stream) return;
@@ -168,17 +179,7 @@ export function MediaCapture({ game, scenario, onComplete, onCancel }: MediaCapt
         return prev + 1;
       });
     }, 1000);
-  }, [stream]);
-
-  const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      mediaRecorderRef.current.stop();
-    }
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  }, []);
+  }, [stream, stopRecording]);
 
   // Photo Capture
   const capturePhoto = useCallback(() => {

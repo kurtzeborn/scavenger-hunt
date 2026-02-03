@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import type { PlayerSession, Team, Player } from '../types';
 
 interface PlayerSessionContextType {
@@ -14,26 +14,27 @@ const PlayerSessionContext = createContext<PlayerSessionContextType | null>(null
 
 const STORAGE_KEY = 'vsh_player_session';
 
-export function PlayerSessionProvider({ children }: { children: ReactNode }) {
-  const [session, setSessionState] = useState<PlayerSession | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Load session from localStorage on mount
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored) as PlayerSession;
-        // Convert date string back to Date
-        parsed.joinedAt = new Date(parsed.joinedAt);
-        setSessionState(parsed);
-      }
-    } catch (error) {
-      console.error('Failed to load player session:', error);
-      localStorage.removeItem(STORAGE_KEY);
+// Helper to load session from localStorage
+function loadStoredSession(): PlayerSession | null {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored) as PlayerSession;
+      // Convert date string back to Date
+      parsed.joinedAt = new Date(parsed.joinedAt);
+      return parsed;
     }
-    setIsLoading(false);
-  }, []);
+  } catch (error) {
+    console.error('Failed to load player session:', error);
+    localStorage.removeItem(STORAGE_KEY);
+  }
+  return null;
+}
+
+export function PlayerSessionProvider({ children }: { children: ReactNode }) {
+  // Use lazy initialization to avoid useEffect + setState pattern
+  const [session, setSessionState] = useState<PlayerSession | null>(() => loadStoredSession());
+  const [isLoading] = useState(false); // No longer loading since we initialize synchronously
 
   const setSession = useCallback((newSession: PlayerSession | null) => {
     setSessionState(newSession);
@@ -79,6 +80,8 @@ export function PlayerSessionProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// Hook to access the player session context
+// eslint-disable-next-line react-refresh/only-export-components
 export function usePlayerSession() {
   const context = useContext(PlayerSessionContext);
   if (!context) {

@@ -1,6 +1,6 @@
 // API client functions for the scavenger hunt app
 
-import type { Game, Scenario, GameConfig, Team, Player, MediaSubmission } from '../types';
+import type { Game, Scenario, GameConfig, Team, Player, CrewMember, MediaSubmission } from '../types';
 
 const API_BASE = '/api';
 
@@ -131,6 +131,27 @@ export async function leaveTeam(gameId: string, teamId: string, playerId: string
 export async function seedTestTeams(gameId: string): Promise<{ message: string; teams: Team[] }> {
   return apiFetch<{ message: string; teams: Team[] }>(`/games/${gameId}/teams/seed`, {
     method: 'POST',
+  });
+}
+
+export interface AddCrewMemberRequest {
+  displayName: string;
+  addedBy: string; // Player ID
+}
+
+export interface AddCrewMemberResponse {
+  crewMember: CrewMember;
+  team: Team;
+}
+
+export async function addCrewMember(
+  gameId: string,
+  teamId: string,
+  data: AddCrewMemberRequest
+): Promise<AddCrewMemberResponse> {
+  return apiFetch<AddCrewMemberResponse>(`/games/${gameId}/teams/${teamId}/crew`, {
+    method: 'POST',
+    body: JSON.stringify(data),
   });
 }
 

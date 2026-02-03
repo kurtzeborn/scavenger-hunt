@@ -106,25 +106,16 @@ export function GamePage() {
 
     case 'active':
     case 'paused':
-      // If player doesn't have a valid session and isn't the game keeper, show error
+      // If player doesn't have a valid session and isn't the game keeper, show join flow for late joining
       if (!hasValidSession && !isGameKeeperForGame) {
         return (
-          <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-lg p-8 max-w-md text-center">
-              <FontAwesomeIcon icon={faExclamationTriangle} className="text-5xl text-amber-500 mb-4" />
-              <h1 className="text-2xl font-bold text-gray-800 mb-2">Game In Progress</h1>
-              <p className="text-gray-600 mb-6">
-                This game has already started. You can't join a game that's in progress.
-              </p>
-              <button
-                onClick={() => navigate('/')}
-                className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors inline-flex items-center gap-2"
-              >
-                <FontAwesomeIcon icon={faArrowLeft} />
-                Back to Home
-              </button>
-            </div>
-          </div>
+          <JoinGameFlow
+            gameId={gameId}
+            onJoined={() => {
+              // Refresh game data after joining
+              queryClient.invalidateQueries({ queryKey: ['game', gameId] });
+            }}
+          />
         );
       }
 

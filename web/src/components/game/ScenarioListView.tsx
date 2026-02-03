@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faCamera,
@@ -7,6 +8,7 @@ import {
   faClock,
   faPlay,
   faTrophy,
+  faHome,
 } from '@fortawesome/free-solid-svg-icons';
 import { useQuery } from '@tanstack/react-query';
 import { fetchTeams, fetchScenarios } from '../../api';
@@ -20,6 +22,7 @@ interface ScenarioListViewProps {
 }
 
 export function ScenarioListView({ game, isGameKeeper }: ScenarioListViewProps) {
+  const navigate = useNavigate();
   const { session } = usePlayerSession();
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
 
@@ -75,12 +78,15 @@ export function ScenarioListView({ game, isGameKeeper }: ScenarioListViewProps) 
       <header className="bg-gradient-to-r from-blue-600 to-purple-700 text-white shadow-lg sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            {/* Left: Player info or Game Keeper label */}
+            {/* Left: Player info or Game Keeper home button */}
             {isGameKeeper ? (
-              <div>
-                <p className="text-blue-100 text-sm">Game Keeper</p>
-                <p className="font-semibold">Monitoring</p>
-              </div>
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="text-white/80 hover:text-white transition-colors p-2"
+                title="Back to Dashboard"
+              >
+                <FontAwesomeIcon icon={faHome} className="text-xl" />
+              </button>
             ) : (
               <div>
                 <p className="text-blue-100 text-sm">{myTeam?.name}</p>
@@ -109,8 +115,14 @@ export function ScenarioListView({ game, isGameKeeper }: ScenarioListViewProps) 
               </div>
             ) : (
               <div className="text-right">
-                <p className="text-2xl font-bold">{teams.length}</p>
-                <p className="text-blue-100 text-xs">Teams</p>
+                <div className="flex items-center gap-2">
+                  <FontAwesomeIcon icon={faTrophy} className="text-yellow-300" />
+                  <span className="text-2xl font-bold">
+                    {teams.reduce((sum, t) => sum + t.completedScenarios.length, 0)}/
+                    {teams.length * totalScenarios}
+                  </span>
+                </div>
+                <p className="text-blue-100 text-xs">Uploads</p>
               </div>
             )}
           </div>

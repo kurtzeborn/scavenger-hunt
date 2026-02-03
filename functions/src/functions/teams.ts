@@ -1,7 +1,15 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { v4 as uuidv4 } from 'uuid';
 import { gamesTable, teamsTable } from '../storage.js';
-import { Team, TeamEntity, Player, GameEntity, TEAM_COLORS } from '../types.js';
+import { Team, TeamEntity, Player, CrewMember, GameEntity, TEAM_COLORS } from '../types.js';
+
+// Game statuses that allow joining/adding crew
+const JOIN_ALLOWED_STATUSES = ['lobby', 'active', 'paused'] as const;
+
+// Calculate total team size (players + crew)
+function getTotalTeamSize(players: Player[], crewMembers: CrewMember[]): number {
+  return players.length + crewMembers.length;
+}
 
 // Convert entity to Team object
 function entityToTeam(entity: TeamEntity): Team {
@@ -11,6 +19,7 @@ function entityToTeam(entity: TeamEntity): Team {
     name: entity.name,
     color: entity.color,
     players: JSON.parse(entity.players || '[]'),
+    crewMembers: JSON.parse(entity.crewMembers || '[]'),
     completedScenarios: JSON.parse(entity.completedScenarios || '[]'),
   };
 }
@@ -82,7 +91,7 @@ app.http('joinGame', {
         };
       }
 
-      // Verify game exists and is in lobby status
+      // Verify game exists and check status for join eligibility
       let gameEntity: GameEntity;
       try {
         gameEntity = await gamesTable.getEntity<GameEntity>('game', gameId);
@@ -96,10 +105,20 @@ app.http('joinGame', {
         throw error;
       }
 
-      if (gameEntity.status !== 'lobby') {
+      // Check game status for join eligibility
+      if (!JOIN_ALLOWED_STATUSES.includes(gameEntity.status as typeof JOIN_ALLOWED_STATUSES[number])) {
         return {
           status: 400,
-          jsonBody: { error: 'Can only join games in lobby status' },
+          jsonBody: { error: 'This game has ended and is no longer accepting players' },
+        };
+      }
+
+      // After lobby, can only join existing teams (no new team creation)
+      const isLateJoin = gameEntity.status !== 'lobby';
+      if (isLateJoin && body.teamName) {
+        return {
+          status: 400,
+          jsonBody: { error: 'Cannot create new teams after the game has started. Please join an existing team.' },
         };
       }
 
@@ -137,12 +156,13 @@ app.http('joinGame', {
         }
 
         const players: Player[] = JSON.parse(teamEntity.players || '[]');
+        const crewMembers: CrewMember[] = JSON.parse(teamEntity.crewMembers || '[]');
 
-        // Check team size limit (6 players max)
-        if (players.length >= 6) {
+        // Check team size limit (6 members max: players + crew)
+        if (getTotalTeamSize(players, crewMembers) >= 6) {
           return {
             status: 400,
-            jsonBody: { error: 'Team is full (maximum 6 players)' },
+            jsonBody: { error: 'Team is full (maximum 6 members)' },
           };
         }
 
@@ -194,6 +214,7 @@ app.http('joinGame', {
           name: body.teamName.trim(),
           color,
           players: JSON.stringify([newPlayer]),
+          crewMembers: JSON.stringify([]),
           completedScenarios: JSON.stringify([]),
         };
 
@@ -405,6 +426,7 @@ app.http('seedTestTeams', {
           name: testTeamNames[i],
           color,
           players: JSON.stringify(players),
+          crewMembers: JSON.stringify([]),
           completedScenarios: JSON.stringify([]),
         };
 
@@ -424,6 +446,135 @@ app.http('seedTestTeams', {
       return {
         status: 500,
         jsonBody: { error: 'Failed to seed test teams' },
+      };
+    }
+  },
+});
+
+// POST /api/games/:id/teams/:teamId/crew - Add crew member (teammate without phone)
+app.http('addCrewMember', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'games/{gameId}/teams/{teamId}/crew',
+  handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
+    try {
+      const gameId = request.params.gameId?.toUpperCase();
+      const teamId = request.params.teamId;
+
+      if (!gameId || !teamId) {
+        return {
+          status: 400,
+          jsonBody: { error: 'Game ID and Team ID are required' },
+        };
+      }
+
+      const body = await request.json() as {
+        displayName: string;
+        addedBy: string; // Player ID of who is adding
+      };
+
+      if (!body.displayName || body.displayName.trim().length === 0) {
+        return {
+          status: 400,
+          jsonBody: { error: 'Display name is required' },
+        };
+      }
+
+      if (body.displayName.length > 20) {
+        return {
+          status: 400,
+          jsonBody: { error: 'Display name must be 20 characters or less' },
+        };
+      }
+
+      if (!body.addedBy) {
+        return {
+          status: 400,
+          jsonBody: { error: 'addedBy (player ID) is required' },
+        };
+      }
+
+      // Verify game exists and is in valid state
+      let gameEntity: GameEntity;
+      try {
+        gameEntity = await gamesTable.getEntity<GameEntity>('game', gameId);
+      } catch (error: any) {
+        if (error.statusCode === 404) {
+          return {
+            status: 404,
+            jsonBody: { error: 'Game not found' },
+          };
+        }
+        throw error;
+      }
+
+      // Can add crew in lobby, active, or paused
+      if (!JOIN_ALLOWED_STATUSES.includes(gameEntity.status as typeof JOIN_ALLOWED_STATUSES[number])) {
+        return {
+          status: 400,
+          jsonBody: { error: 'Cannot add crew members after the game has ended' },
+        };
+      }
+
+      // Get team
+      let teamEntity: TeamEntity;
+      try {
+        teamEntity = await teamsTable.getEntity<TeamEntity>(gameId, teamId);
+      } catch (error: any) {
+        if (error.statusCode === 404) {
+          return {
+            status: 404,
+            jsonBody: { error: 'Team not found' },
+          };
+        }
+        throw error;
+      }
+
+      const players: Player[] = JSON.parse(teamEntity.players || '[]');
+      const crewMembers: CrewMember[] = JSON.parse(teamEntity.crewMembers || '[]');
+
+      // Verify caller is a team member
+      const isTeamMember = players.some(p => p.id === body.addedBy);
+      if (!isTeamMember) {
+        return {
+          status: 403,
+          jsonBody: { error: 'Only team members can add crew members' },
+        };
+      }
+
+      // Check team size limit (6 members max: players + crew)
+      if (getTotalTeamSize(players, crewMembers) >= 6) {
+        return {
+          status: 400,
+          jsonBody: { error: 'Team is full (maximum 6 members)' },
+        };
+      }
+
+      const now = new Date();
+      const newCrewMember: CrewMember = {
+        id: uuidv4(),
+        displayName: body.displayName.trim(),
+        addedBy: body.addedBy,
+        addedAt: now,
+      };
+
+      crewMembers.push(newCrewMember);
+      teamEntity.crewMembers = JSON.stringify(crewMembers);
+
+      await teamsTable.updateEntity(teamEntity, 'Merge');
+
+      return {
+        status: 201,
+        jsonBody: {
+          crewMember: newCrewMember,
+          team: entityToTeam(teamEntity),
+        },
+      };
+    } catch (error) {
+      context.error('Failed to add crew member:', error);
+      return {
+        status: 500,
+        jsonBody: { error: 'Failed to add crew member' },
       };
     }
   },

@@ -25,4 +25,5 @@ For local testing setup, see [docs/DEVELOPMENT.md](../docs/DEVELOPMENT.md).
 
 - Follow existing code patterns and style
 - Test changes locally before committing
+- Ensure there are no warnings or errors in build or linter before committing
 - Ensure TypeScript compiles without errors (`npm run build`)

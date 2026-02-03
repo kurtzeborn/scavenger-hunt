@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUsers, faSpinner, faGamepad, faClock, faFlask } from '@fortawesome/free-solid-svg-icons';
+import { faUsers, faSpinner, faGamepad, faClock, faFlask, faUserPlus, faTimes } from '@fortawesome/free-solid-svg-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchTeams, seedTestTeams } from '../../api';
+import { fetchTeams, seedTestTeams, addCrewMember } from '../../api';
 import { usePlayerSession } from '../../contexts/PlayerSessionContext';
 import type { Game, Team } from '../../types';
+import { getTeamSize } from '../../types';
 
 // Check if we're in development mode
 const isDev = import.meta.env.DEV;
@@ -37,8 +39,8 @@ export function LobbyView({ game, isGameKeeper, onStartGame, startingGame }: Lob
   // Find the current player's team
   const myTeam = teams.find((t) => t.id === session?.teamId);
 
-  // Count total players
-  const totalPlayers = teams.reduce((sum, team) => sum + team.players.length, 0);
+  // Count total members across all teams
+  const totalMembers = teams.reduce((sum, team) => sum + getTeamSize(team), 0);
 
   // Check if game can start
   // In dev mode with game keeper, allow starting with 1+ team
@@ -119,7 +121,7 @@ export function LobbyView({ game, isGameKeeper, onStartGame, startingGame }: Lob
               Teams ({teams.length})
             </h3>
             <span className="text-gray-500 text-sm">
-              {totalPlayers} player{totalPlayers !== 1 ? 's' : ''} joined
+              {totalMembers} member{totalMembers !== 1 ? 's' : ''} joined
             </span>
           </div>
 
@@ -139,6 +141,9 @@ export function LobbyView({ game, isGameKeeper, onStartGame, startingGame }: Lob
                   key={team.id}
                   team={team}
                   isMyTeam={team.id === session?.teamId}
+                  gameId={game.id}
+                  playerId={session?.playerId}
+                  onCrewAdded={() => queryClient.invalidateQueries({ queryKey: ['teams', game.id] })}
                 />
               ))}
             </div>
@@ -220,9 +225,47 @@ export function LobbyView({ game, isGameKeeper, onStartGame, startingGame }: Lob
 interface TeamCardProps {
   team: Team;
   isMyTeam: boolean;
+  gameId: string;
+  playerId?: string;
+  onCrewAdded: () => void;
 }
 
-function TeamCard({ team, isMyTeam }: TeamCardProps) {
+function TeamCard({ team, isMyTeam, gameId, playerId, onCrewAdded }: TeamCardProps) {
+  const [showAddCrew, setShowAddCrew] = useState(false);
+  const [crewName, setCrewName] = useState('');
+  const [error, setError] = useState('');
+
+  const addCrewMutation = useMutation({
+    mutationFn: () => addCrewMember(gameId, team.id, {
+      displayName: crewName.trim(),
+      addedBy: playerId!,
+    }),
+    onSuccess: () => {
+      setShowAddCrew(false);
+      setCrewName('');
+      setError('');
+      onCrewAdded();
+    },
+    onError: (err: Error) => {
+      setError(err.message || 'Failed to add crew member');
+    },
+  });
+
+  const teamSize = getTeamSize(team);
+  const canAddCrew = isMyTeam && teamSize < 6;
+
+  const handleAddCrew = () => {
+    if (!crewName.trim()) {
+      setError('Name is required');
+      return;
+    }
+    if (crewName.length > 20) {
+      setError('Name must be 20 characters or less');
+      return;
+    }
+    addCrewMutation.mutate();
+  };
+
   return (
     <div
       className={`rounded-lg border-2 p-4 transition-all ${
@@ -243,20 +286,87 @@ function TeamCard({ team, isMyTeam }: TeamCardProps) {
           </span>
         </div>
         <span className="text-gray-500 text-sm">
-          {team.players.length}/6 players
+          {teamSize}/6 members
         </span>
       </div>
       
+      {/* Players */}
       {team.players.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-2">
           {team.players.map((player) => (
             <span
               key={player.id}
-              className="bg-white px-3 py-1 rounded-full text-sm text-gray-700 border"
+              className="bg-white px-3 py-1 rounded-full text-sm text-gray-700 border flex items-center gap-1"
             >
-              {player.displayName}
+              📱 {player.displayName}
             </span>
           ))}
+        </div>
+      )}
+
+      {/* Crew Members */}
+      {team.crewMembers && team.crewMembers.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-2">
+          {team.crewMembers.map((crew) => (
+            <span
+              key={crew.id}
+              className="bg-gray-100 px-3 py-1 rounded-full text-sm text-gray-600 border border-dashed flex items-center gap-1"
+            >
+              👤 {crew.displayName}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Add Crew Button */}
+      {canAddCrew && !showAddCrew && (
+        <button
+          onClick={() => setShowAddCrew(true)}
+          className="mt-3 text-blue-600 hover:text-blue-700 text-sm flex items-center gap-1"
+        >
+          <FontAwesomeIcon icon={faUserPlus} />
+          Add teammate without phone
+        </button>
+      )}
+
+      {/* Add Crew Form */}
+      {showAddCrew && (
+        <div className="mt-3 bg-white rounded-lg p-3 border">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-gray-700">Add Crew Member</span>
+            <button
+              onClick={() => { setShowAddCrew(false); setError(''); setCrewName(''); }}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <FontAwesomeIcon icon={faTimes} />
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 mb-2">
+            For teammates participating without their own phone
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={crewName}
+              onChange={(e) => { setCrewName(e.target.value); setError(''); }}
+              placeholder="Name"
+              maxLength={20}
+              className="flex-1 border rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
+              autoFocus
+            />
+            <button
+              onClick={handleAddCrew}
+              disabled={addCrewMutation.isPending}
+              className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white px-4 py-2 rounded text-sm font-medium"
+            >
+              {addCrewMutation.isPending ? (
+                <FontAwesomeIcon icon={faSpinner} className="animate-spin" />
+              ) : (
+                'Add'
+              )}
+            </button>
+          </div>
+          {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
         </div>
       )}
     </div>

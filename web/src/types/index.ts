@@ -48,6 +48,14 @@ export interface Player {
   joinedAt: Date;
 }
 
+// Crew member (teammate without a phone)
+export interface CrewMember {
+  id: string; // Generated ID
+  displayName: string; // Max 20 chars
+  addedBy: string; // Player ID who added them
+  addedAt: Date;
+}
+
 // Team entity
 export interface Team {
   id: string;
@@ -55,7 +63,13 @@ export interface Team {
   name: string; // Max 20 chars
   color: string; // Auto-assigned from palette
   players: Player[];
+  crewMembers: CrewMember[]; // Team members without phones
   completedScenarios: string[]; // Scenario IDs
+}
+
+// Helper to get total team size (players + crew)
+export function getTeamSize(team: Team): number {
+  return team.players.length + (team.crewMembers?.length || 0);
 }
 
 // Player session stored in localStorage

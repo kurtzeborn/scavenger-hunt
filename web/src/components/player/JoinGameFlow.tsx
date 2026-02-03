@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUsers, faPlus, faArrowRight, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { faUsers, faPlus, faArrowRight, faSpinner, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { joinGame, fetchTeams } from '../../api';
+import { joinGame, fetchTeams, fetchGame } from '../../api';
 import { usePlayerSession } from '../../contexts/PlayerSessionContext';
 import type { Team } from '../../types';
+import { getTeamSize } from '../../types';
 
 interface JoinGameFlowProps {
   gameId: string;
@@ -23,12 +24,27 @@ export function JoinGameFlow({ gameId, onJoined }: JoinGameFlowProps) {
   const { joinTeam } = usePlayerSession();
   const queryClient = useQueryClient();
 
+  // Fetch game status to determine join eligibility
+  const { data: game, isLoading: gameLoading } = useQuery({
+    queryKey: ['game', gameId],
+    queryFn: () => fetchGame(gameId),
+  });
+
+  // Determine if this is a late join (game already started)
+  const isLateJoin = game?.status === 'active' || game?.status === 'paused';
+  const gameEnded = game?.status === 'judging' || game?.status === 'complete';
+
   // Fetch existing teams
   const { data: teams = [], isLoading: teamsLoading } = useQuery({
     queryKey: ['teams', gameId],
     queryFn: () => fetchTeams(gameId),
     refetchInterval: 5000, // Refresh every 5 seconds to see new teams
+    enabled: !gameEnded, // Don't fetch if game ended
   });
+
+  // For late joins, only show teams with available slots
+  const availableTeams = teams.filter(t => getTeamSize(t) < 6);
+  const allTeamsFull = isLateJoin && availableTeams.length === 0 && teams.length > 0;
 
   // Join game mutation
   const joinMutation = useMutation({
@@ -81,6 +97,7 @@ export function JoinGameFlow({ gameId, onJoined }: JoinGameFlowProps) {
   };
 
   const handleTeamSelect = (team: Team) => {
+    if (getTeamSize(team) >= 6) return;
     setSelectedTeamId(team.id);
     setIsCreatingTeam(false);
     setError('');
@@ -142,54 +159,78 @@ export function JoinGameFlow({ gameId, onJoined }: JoinGameFlowProps) {
           <h1 className="text-2xl font-bold text-gray-800 mb-2">
             Hey {displayName}! 👋
           </h1>
-          <p className="text-gray-500">Pick a team or create a new one</p>
+          {isLateJoin ? (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-3">
+              <p className="text-amber-800 text-sm">
+                🎮 Game in progress! Join an existing team to jump in.
+              </p>
+            </div>
+          ) : (
+            <p className="text-gray-500">Pick a team or create a new one</p>
+          )}
         </div>
 
-        {teamsLoading ? (
+        {gameLoading || teamsLoading ? (
           <div className="text-center py-8 text-gray-500">
             <FontAwesomeIcon icon={faSpinner} className="animate-spin mr-2" />
-            Loading teams...
+            Loading...
+          </div>
+        ) : gameEnded ? (
+          <div className="text-center py-8">
+            <FontAwesomeIcon icon={faExclamationTriangle} className="text-amber-500 text-4xl mb-4" />
+            <p className="text-gray-700 font-medium">This game has ended.</p>
+            <p className="text-gray-500 text-sm mt-2">You can no longer join this game.</p>
+          </div>
+        ) : allTeamsFull ? (
+          <div className="text-center py-8">
+            <FontAwesomeIcon icon={faExclamationTriangle} className="text-amber-500 text-4xl mb-4" />
+            <p className="text-gray-700 font-medium">Sorry, all teams are full!</p>
+            <p className="text-gray-500 text-sm mt-2">Ask a team member to add you as crew.</p>
           </div>
         ) : (
           <>
             {/* Existing Teams */}
-            {teams.length > 0 && (
+            {(isLateJoin ? availableTeams : teams).length > 0 && (
               <div className="space-y-2 mb-4">
-                {teams.map((team) => (
-                  <button
-                    key={team.id}
-                    type="button"
-                    onClick={() => handleTeamSelect(team)}
-                    disabled={team.players.length >= 6}
-                    className={`w-full p-4 rounded-lg border-2 transition-all flex items-center justify-between ${
-                      selectedTeamId === team.id
-                        ? 'border-blue-500 bg-blue-50'
-                        : team.players.length >= 6
-                        ? 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-4 h-4 rounded-full"
-                        style={{ backgroundColor: team.color }}
-                      />
-                      <span className="font-medium text-gray-800">{team.name}</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-gray-500 text-sm">
-                      <FontAwesomeIcon icon={faUsers} />
-                      <span>
-                        {team.players.length}/6
-                        {team.players.length >= 6 && ' (Full)'}
-                      </span>
-                    </div>
-                  </button>
-                ))}
+                {(isLateJoin ? availableTeams : teams).map((team) => {
+                  const teamSize = getTeamSize(team);
+                  const isFull = teamSize >= 6;
+                  return (
+                    <button
+                      key={team.id}
+                      type="button"
+                      onClick={() => handleTeamSelect(team)}
+                      disabled={isFull}
+                      className={`w-full p-4 rounded-lg border-2 transition-all flex items-center justify-between ${
+                        selectedTeamId === team.id
+                          ? 'border-blue-500 bg-blue-50'
+                          : isFull
+                          ? 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-4 h-4 rounded-full"
+                          style={{ backgroundColor: team.color }}
+                        />
+                        <span className="font-medium text-gray-800">{team.name}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-gray-500 text-sm">
+                        <FontAwesomeIcon icon={faUsers} />
+                        <span>
+                          {teamSize}/6
+                          {isFull && ' (Full)'}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             )}
 
-            {/* Create New Team */}
-            {!isCreatingTeam ? (
+            {/* Create New Team - only in lobby */}
+            {!isLateJoin && !isCreatingTeam && (
               <button
                 type="button"
                 onClick={handleCreateTeamToggle}
@@ -204,7 +245,10 @@ export function JoinGameFlow({ gameId, onJoined }: JoinGameFlowProps) {
                 Create New Team
                 {teams.length >= 20 && ' (Max 20 teams)'}
               </button>
-            ) : (
+            )}
+
+            {/* New Team Name Input */}
+            {!isLateJoin && isCreatingTeam && (
               <div className="p-4 rounded-lg border-2 border-blue-500 bg-blue-50">
                 <label htmlFor="teamName" className="block text-gray-700 font-medium mb-2">
                   Team Name
@@ -229,24 +273,26 @@ export function JoinGameFlow({ gameId, onJoined }: JoinGameFlowProps) {
 
         {error && <p className="text-red-500 text-sm mt-4 text-center">{error}</p>}
 
-        <button
-          type="button"
-          onClick={handleJoin}
-          disabled={joinMutation.isPending || (!selectedTeamId && !isCreatingTeam)}
-          className="w-full mt-6 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
-        >
-          {joinMutation.isPending ? (
-            <>
-              <FontAwesomeIcon icon={faSpinner} className="animate-spin" />
-              Joining...
-            </>
-          ) : (
-            <>
-              <FontAwesomeIcon icon={faUsers} />
-              Join Team
-            </>
-          )}
-        </button>
+        {!gameEnded && !allTeamsFull && (
+          <button
+            type="button"
+            onClick={handleJoin}
+            disabled={joinMutation.isPending || (!selectedTeamId && !isCreatingTeam)}
+            className="w-full mt-6 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
+          >
+            {joinMutation.isPending ? (
+              <>
+                <FontAwesomeIcon icon={faSpinner} className="animate-spin" />
+                Joining...
+              </>
+            ) : (
+              <>
+                <FontAwesomeIcon icon={faUsers} />
+                Join Team
+              </>
+            )}
+          </button>
+        )}
 
         <button
           type="button"
