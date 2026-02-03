@@ -63,6 +63,16 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.19.0' = {
           publicAccess: 'None'
         }
       ]
+      // CORS for direct browser uploads
+      corsRules: [
+        {
+          allowedOrigins: customDomain != '' ? ['https://${customDomain}'] : ['*']
+          allowedMethods: ['GET', 'HEAD', 'PUT', 'POST', 'OPTIONS', 'DELETE']
+          allowedHeaders: ['*']
+          exposedHeaders: ['*']
+          maxAgeInSeconds: 3600
+        }
+      ]
     }
     
     // Table services for game data
