@@ -20,6 +20,9 @@ param swaLocation string = 'eastus2'
 @description('Custom domain for the Static Web App (e.g., vsh.k61.dev)')
 param customDomain string = ''
 
+@description('Reset data by recreating tables and reseeding. Only set to true when you want to clear all data!')
+param resetData bool = false
+
 @description('Tags to apply to all resources')
 param tags object = {
   project: 'video-scavenger-hunt'
@@ -63,20 +66,30 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.19.0' = {
           publicAccess: 'None'
         }
       ]
-      // CORS for direct browser uploads
-      corsRules: [
+      // CORS for direct browser uploads - include both SWA hostname and custom domain
+      corsRules: concat([
         {
-          allowedOrigins: customDomain != '' ? ['https://${customDomain}'] : ['*']
+          allowedOrigins: ['https://*.azurestaticapps.net']
           allowedMethods: ['GET', 'HEAD', 'PUT', 'POST', 'OPTIONS', 'DELETE']
           allowedHeaders: ['*']
           exposedHeaders: ['*']
           maxAgeInSeconds: 3600
         }
-      ]
+      ], customDomain != '' ? [
+        {
+          allowedOrigins: ['https://${customDomain}']
+          allowedMethods: ['GET', 'HEAD', 'PUT', 'POST', 'OPTIONS', 'DELETE']
+          allowedHeaders: ['*']
+          exposedHeaders: ['*']
+          maxAgeInSeconds: 3600
+        }
+      ] : [])
     }
     
     // Table services for game data
-    tableServices: {
+    // Only include tables when resetData=true to avoid wiping data on every deployment
+    // Tables are created automatically by Azure Functions on first access if they don't exist
+    tableServices: resetData ? {
       tables: [
         { name: 'Games' }
         { name: 'Teams' }
@@ -84,7 +97,7 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.19.0' = {
         { name: 'GameKeepers' }
         { name: 'MediaSubmissions' }
       ]
-    }
+    } : {}
     
     // Lifecycle policy: Delete blobs after 7 days
     managementPolicyRules: [

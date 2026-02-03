@@ -64,6 +64,10 @@ jobs:
         with:
           resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP }}
           template: ./infra/main.bicep
+          # Note: resetData defaults to false to preserve existing data
+          # To reset all data, manually run: az deployment group create ... --parameters resetData=true
+          # Then re-seed: curl -X POST https://func-vsh-prod.azurewebsites.net/api/scenarios/seed
+          #               curl -X POST https://func-vsh-prod.azurewebsites.net/api/gamekeepers/seed
           parameters: environment=prod customDomain=vsh.k61.dev
           failOnStdErr: false
 
