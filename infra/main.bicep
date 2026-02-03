@@ -15,7 +15,7 @@ param environment string = 'prod'
 param location string = resourceGroup().location
 
 @description('Azure region for Static Web App (SWA availability varies by region)')
-param swaLocation string = 'centralus'
+param swaLocation string = 'eastus2'
 
 @description('Custom domain for the Static Web App (e.g., vsh.k61.dev)')
 param customDomain string = ''
@@ -30,7 +30,7 @@ param tags object = {
 // Variables
 // ============================================================================
 
-var resourceSuffix = environment == 'prod' ? '' : '-${environment}'
+var resourceSuffix = environment == 'prod' ? '-prod' : '-${environment}'
 var staticSiteName = 'swa-vsh${resourceSuffix}'
 var storageAccountName = 'stvsh${uniqueString(resourceGroup().id)}${environment}'
 
