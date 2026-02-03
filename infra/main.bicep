@@ -159,10 +159,13 @@ module functionApp 'br/public:avm/res/web/site:0.15.1' = {
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
       cors: {
-        allowedOrigins: [
-          'https://${staticSite.outputs.defaultHostname}'
-          customDomain != '' ? 'https://${customDomain}' : 'https://localhost:5173'
-        ]
+        allowedOrigins: concat(
+          [
+            'https://${staticSite.outputs.defaultHostname}'
+            'https://localhost:5173'
+          ],
+          customDomain != '' ? ['https://${customDomain}'] : []
+        )
         supportCredentials: true
       }
     }

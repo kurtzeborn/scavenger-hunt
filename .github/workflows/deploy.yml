@@ -64,7 +64,7 @@ jobs:
         with:
           resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP }}
           template: ./infra/main.bicep
-          parameters: environment=prod
+          parameters: environment=prod customDomain=vsh.k61.dev
           failOnStdErr: false
 
       - name: Configure Function App Settings
