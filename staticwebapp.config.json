@@ -7,6 +7,10 @@
     {
       "route": "/.auth/logout",
       "rewrite": "/.auth/logout"
+    },
+    {
+      "route": "/api/*",
+      "allowedRoles": ["anonymous", "authenticated"]
     }
   ],
   "navigationFallback": {

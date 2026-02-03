@@ -5,15 +5,55 @@ import type { Game, Scenario, GameConfig, Team, Player, CrewMember, MediaSubmiss
 // API base URL - defaults to /api for local dev, overridden by env var in production
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
-// Get mock auth header for local development
-function getMockAuthHeader(): Record<string, string> {
+// Cache for the client principal from SWA
+let cachedClientPrincipal: string | null = null;
+
+// Fetch the client principal from SWA's /.auth/me endpoint
+async function fetchClientPrincipal(): Promise<string | null> {
+  // Only fetch from SWA in production (when using external API)
+  if (!import.meta.env.VITE_API_BASE_URL) {
+    return null;
+  }
+
+  try {
+    const response = await fetch('/.auth/me');
+    if (!response.ok) {
+      return null;
+    }
+    const data = await response.json();
+    if (data.clientPrincipal) {
+      // Re-encode as base64 to match the x-ms-client-principal format
+      return btoa(JSON.stringify(data.clientPrincipal));
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// Get auth header - uses cached client principal or fetches from SWA
+async function getAuthHeader(): Promise<Record<string, string>> {
+  // For local dev, check mock auth
   const mockPrincipal = localStorage.getItem('mockAuthPrincipal');
   if (mockPrincipal) {
-    // Encode as base64 to match SWA's x-ms-client-principal format
-    const encoded = btoa(mockPrincipal);
-    return { 'x-ms-client-principal': encoded };
+    return { 'x-ms-client-principal': btoa(mockPrincipal) };
   }
+
+  // For production, fetch from SWA if not cached
+  if (cachedClientPrincipal === null) {
+    cachedClientPrincipal = await fetchClientPrincipal() || '';
+  }
+  
+  if (cachedClientPrincipal) {
+    return { 'x-ms-client-principal': cachedClientPrincipal };
+  }
+  
   return {};
+}
+
+// Clear cached auth (call on logout)
+export function clearAuthCache(): void {
+  cachedClientPrincipal = null;
 }
 
 // Generic fetch wrapper with error handling
@@ -21,11 +61,12 @@ async function apiFetch<T>(
   url: string,
   options?: RequestInit
 ): Promise<T> {
+  const authHeaders = await getAuthHeader();
   const response = await fetch(`${API_BASE}${url}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      ...getMockAuthHeader(),
+      ...authHeaders,
       ...options?.headers,
     },
   });
@@ -285,9 +326,10 @@ export interface MeResponse {
 
 export async function fetchMe(): Promise<MeResponse> {
   // Special case: /api/me returns 200 even for unauthenticated users
-  // Include mock auth header for local development
+  // Include auth header for both local development and production
+  const authHeaders = await getAuthHeader();
   const response = await fetch(`${API_BASE}/me`, {
-    headers: getMockAuthHeader(),
+    headers: authHeaders,
   });
   if (!response.ok) {
     throw new ApiError('Failed to fetch auth status', response.status);
