@@ -347,10 +347,23 @@ POST   /api/games/:id/bonus          Award bonus point for scenario
 GET    /api/games/:id/scores         Get final scores
 ```
 
-### Scenarios (Library)
+### Scenarios (Library - Game Keeper Only)
 ```
 GET    /api/scenarios                List all scenarios
-POST   /api/scenarios                Add new scenario (admin only)
+POST   /api/scenarios                Create new scenario
+PUT    /api/scenarios/:id            Update existing scenario
+DELETE /api/scenarios/:id            Delete scenario (blocked if used in active games)
+```
+
+**Scenario Request Body (POST/PUT):**
+```typescript
+{
+  title: string;           // Required, max 100 chars
+  description: string;     // Required, max 500 chars
+  mediaType: 'photo' | 'video';
+  category: string;        // 'location' | 'general' | 'church' | custom
+  difficulty?: 'easy' | 'medium' | 'hard';
+}
 ```
 
 ### Game Keeper Management (Game Keeper Only)
@@ -454,6 +467,61 @@ All users arrive at the same landing page. The UI adapts based on authentication
    - "Delete All Videos" cleanup button
    - "New Game" option
 ```
+
+### 9.1.1 Scenario Management (Game Keeper Dashboard)
+
+Game keepers can manage the scenario library from a dedicated tab in the dashboard:
+
+```
+┌─────────────────────────────────────────────────────┐
+│  📋 My Games   │   📝 Scenarios                     │
+├─────────────────────────────────────────────────────┤
+│  [+ Add Scenario]                                   │
+│                                                     │
+│  📍 Location (10)                         [▼ Hide]  │
+│  ┌─────────────────────────────────────────────┐    │
+│  │ Gas Station Hero            🎬    [Edit][×] │    │
+│  │ Frozen Performance          🎬    [Edit][×] │    │
+│  │ Abbey Road                  🎬    [Edit][×] │    │
+│  └─────────────────────────────────────────────┘    │
+│                                                     │
+│  🎭 General (9)                           [▼ Hide]  │
+│  ┌─────────────────────────────────────────────┐    │
+│  │ Viral Recreation            🎬    [Edit][×] │    │
+│  │ Stranger Workout            🎬    [Edit][×] │    │
+│  └─────────────────────────────────────────────┘    │
+│                                                     │
+│  ⛪ Church (4)                            [▼ Hide]  │
+│  └─────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────┘
+```
+
+**Add/Edit Scenario Modal:**
+```
+┌────────────────────────────────────────┐
+│  ✏️ Edit Scenario                  [×] │
+├────────────────────────────────────────┤
+│  Title:                                │
+│  [Gas Station Hero________________]    │
+│                                        │
+│  Description:                          │
+│  [Pump gas for a stranger at a    ]    │
+│  [gas station____________________]     │
+│                                        │
+│  Media Type:   ○ 📷 Photo  ● 🎬 Video  │
+│                                        │
+│  Category:     [Location ▼]            │
+│                                        │
+│  Difficulty:   ○ Easy ○ Medium ○ Hard  │
+│                                        │
+│            [Cancel]  [Save]            │
+└────────────────────────────────────────┘
+```
+
+**Delete Confirmation:**
+- Scenarios used in active/recent games cannot be deleted
+- Warning shown if scenario was used in past games
+- Confirmation required before deletion
 
 ### 9.2 Player Flow
 
@@ -966,6 +1034,16 @@ Support for team members who participate but don't have their own device, plus a
 - GET /api/games/:id/scores endpoint (scores calculated client-side from teams + game data)
 
 ### Phase 4: Polish & Deployment (Week 6)
+
+**Scenario Management:**
+- [ ] `POST /api/scenarios` - Create new scenario (game keeper only)
+- [ ] `PUT /api/scenarios/:id` - Update existing scenario
+- [ ] `DELETE /api/scenarios/:id` - Delete scenario (block if used in active games)
+- [ ] Dashboard "Scenarios" tab with category grouping
+- [ ] Add/Edit scenario modal with form validation
+- [ ] Delete confirmation with usage check
+
+**Deployment & Polish:**
 - [ ] PWA manifest and service worker
 - [ ] QR code generation for game codes
 - [ ] Responsive design polish
@@ -977,7 +1055,7 @@ Support for team members who participate but don't have their own device, plus a
 ### Phase 5: Future Enhancements
 - [ ] Pre-assigned teams mode (game keeper creates teams in advance)
 - [ ] SignalR for instant updates (if needed)
-- [ ] Custom scenario creation per game
+- [ ] Per-game custom scenarios (one-off scenarios not saved to library)
 - [ ] Media thumbnails for quick review
 - [ ] Share/download final media compilation
 

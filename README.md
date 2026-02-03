@@ -2,9 +2,16 @@
 
 A multiplayer video scavenger hunt game where teams compete to act out scenarios and capture them on video. A game keeper manages the session and reviews submissions at the end.
 
-**Production URL**: https://vsh.k61.dev  
-**Project Plan**: [docs/plan.md](docs/plan.md)  
-**Local Development**: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
+**Production URL**: https://vsh.k61.dev
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Game Rules](docs/GAME_RULES.md) | How to play, scoring, and tie-breaking |
+| [Storage Architecture](docs/STORAGE.md) | Table and Blob storage design |
+| [Local Development](docs/DEVELOPMENT.md) | Setup guide for local dev environment |
+| [Project Plan](docs/plan.md) | Full technical specification and roadmap |
 
 ## Project Structure
 
