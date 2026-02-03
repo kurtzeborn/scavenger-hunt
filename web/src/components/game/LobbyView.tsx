@@ -54,88 +54,88 @@ export function LobbyView({ game, isGameKeeper, onStartGame, startingGame }: Lob
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
       <header className="bg-gradient-to-r from-blue-600 to-purple-700 text-white shadow-lg">
-        <div className="max-w-4xl mx-auto px-4 py-6">
+        <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-blue-100 text-sm mb-1">Game Code</p>
-              <h1 className="text-3xl font-mono font-bold tracking-wider">{game.id}</h1>
+              <p className="text-blue-100 text-xs">Game Code</p>
+              <h1 className="text-2xl font-mono font-bold tracking-wider">{game.id}</h1>
             </div>
             <div className="text-right">
-              <p className="text-blue-100 text-sm mb-1">Status</p>
+              <p className="text-blue-100 text-xs">Status</p>
               <div className="flex items-center gap-2">
-                <span className="animate-pulse w-3 h-3 bg-yellow-400 rounded-full"></span>
-                <span className="font-semibold">Waiting for players...</span>
+                <span className="animate-pulse w-2.5 h-2.5 bg-yellow-400 rounded-full"></span>
+                <span className="font-semibold text-sm">Waiting for players...</span>
               </div>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8">
+      <main className="max-w-4xl mx-auto px-4 py-4">
         {/* Player Info Card */}
         {myTeam && session && (
-          <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-            <div className="flex items-center gap-4">
+          <div className="bg-white rounded-lg shadow-lg p-4 mb-4">
+            <div className="flex items-center gap-3">
               <div
-                className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-xl"
+                className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg"
                 style={{ backgroundColor: myTeam.color }}
               >
                 {session.displayName.charAt(0).toUpperCase()}
               </div>
               <div>
-                <p className="text-gray-500 text-sm">You're on</p>
-                <h2 className="text-xl font-bold text-gray-800">{myTeam.name}</h2>
-                <p className="text-gray-500 text-sm">as {session.displayName}</p>
+                <p className="text-gray-500 text-xs">You're on</p>
+                <h2 className="text-lg font-bold text-gray-800">{myTeam.name}</h2>
+                <p className="text-gray-500 text-xs">as {session.displayName}</p>
               </div>
             </div>
           </div>
         )}
 
         {/* Game Info */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+        <div className="bg-white rounded-lg shadow-lg p-4 mb-4">
+          <h3 className="text-base font-semibold text-gray-800 mb-3 flex items-center gap-2">
             <FontAwesomeIcon icon={faGamepad} className="text-blue-500" />
             Game Settings
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
-            <div className="bg-gray-50 rounded-lg p-4">
-              <p className="text-2xl font-bold text-gray-800">{game.config.scenarioCount}</p>
-              <p className="text-gray-500 text-sm">Scenarios</p>
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div className="bg-gray-50 rounded-lg p-2">
+              <p className="text-xl font-bold text-gray-800">{game.config.scenarioCount}</p>
+              <p className="text-gray-500 text-xs">Scenarios</p>
             </div>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <p className="text-2xl font-bold text-gray-800">{game.config.timeLimit}</p>
-              <p className="text-gray-500 text-sm">Minutes</p>
+            <div className="bg-gray-50 rounded-lg p-2">
+              <p className="text-xl font-bold text-gray-800">{game.config.timeLimit}</p>
+              <p className="text-gray-500 text-xs">Minutes</p>
             </div>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <p className="text-2xl font-bold text-gray-800">{game.config.timeLimitPerScenario}</p>
-              <p className="text-gray-500 text-sm">Min/Scenario</p>
+            <div className="bg-gray-50 rounded-lg p-2">
+              <p className="text-xl font-bold text-gray-800">{game.config.timeLimitPerScenario}</p>
+              <p className="text-gray-500 text-xs">Min/Scenario</p>
             </div>
           </div>
         </div>
 
         {/* Teams List */}
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+        <div className="bg-white rounded-lg shadow-lg p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2">
               <FontAwesomeIcon icon={faUsers} className="text-blue-500" />
               Teams ({teams.length})
             </h3>
-            <span className="text-gray-500 text-sm">
+            <span className="text-gray-500 text-xs">
               {totalMembers} member{totalMembers !== 1 ? 's' : ''} joined
             </span>
           </div>
 
           {teamsLoading ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-6 text-gray-500">
               <FontAwesomeIcon icon={faSpinner} className="animate-spin mr-2" />
               Loading teams...
             </div>
           ) : teams.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-6 text-gray-500 text-sm">
               <p>No teams yet. Share the game code to invite players!</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {teams.map((team) => (
                 <TeamCard
                   key={team.id}
@@ -152,23 +152,23 @@ export function LobbyView({ game, isGameKeeper, onStartGame, startingGame }: Lob
 
         {/* Game Keeper Controls */}
         {isGameKeeper && (
-          <div className="mt-8 bg-white rounded-xl shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Game Keeper Controls</h3>
+          <div className="mt-4 bg-white rounded-lg shadow-lg p-4">
+            <h3 className="text-base font-semibold text-gray-800 mb-3">Game Keeper Controls</h3>
             
             {/* Dev Mode Controls */}
             {isDev && (
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
-                <div className="flex items-center gap-2 mb-2">
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-3">
+                <div className="flex items-center gap-2 mb-1">
                   <FontAwesomeIcon icon={faFlask} className="text-purple-600" />
-                  <span className="font-semibold text-purple-800">Dev Mode</span>
+                  <span className="font-semibold text-purple-800 text-sm">Dev Mode</span>
                 </div>
-                <p className="text-purple-700 text-sm mb-3">
+                <p className="text-purple-700 text-xs mb-2">
                   Testing tools - only visible in development.
                 </p>
                 <button
                   onClick={() => seedMutation.mutate()}
                   disabled={seedMutation.isPending}
-                  className="bg-purple-500 hover:bg-purple-600 disabled:bg-purple-300 text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm"
+                  className="bg-purple-500 hover:bg-purple-600 disabled:bg-purple-300 text-white font-medium py-1.5 px-3 rounded-lg transition-colors text-sm"
                 >
                   {seedMutation.isPending ? 'Adding...' : '+ Add 2 Test Teams'}
                 </button>
@@ -181,8 +181,8 @@ export function LobbyView({ game, isGameKeeper, onStartGame, startingGame }: Lob
             )}
             
             {!canStart && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
-                <p className="text-amber-800">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
+                <p className="text-amber-800 text-sm">
                   <strong>⚠️ Cannot start yet:</strong> Need at least {isDev ? '1 team' : '2 teams'} with players to start the game.
                 </p>
               </div>
@@ -268,37 +268,37 @@ function TeamCard({ team, isMyTeam, gameId, playerId, onCrewAdded }: TeamCardPro
 
   return (
     <div
-      className={`rounded-lg border-2 p-4 transition-all ${
+      className={`rounded-lg border-2 p-3 transition-all ${
         isMyTeam
           ? 'border-blue-400 bg-blue-50'
           : 'border-gray-200 bg-gray-50'
       }`}
     >
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
           <div
-            className="w-5 h-5 rounded-full"
+            className="w-4 h-4 rounded-full"
             style={{ backgroundColor: team.color }}
           />
-          <span className="font-semibold text-gray-800">
+          <span className="font-semibold text-gray-800 text-sm">
             {team.name}
-            {isMyTeam && <span className="ml-2 text-blue-500 text-sm">(Your Team)</span>}
+            {isMyTeam && <span className="ml-1 text-blue-500 text-xs">(You)</span>}
           </span>
         </div>
-        <span className="text-gray-500 text-sm">
-          {teamSize}/6 members
+        <span className="text-gray-500 text-xs">
+          {teamSize}/6
         </span>
       </div>
       
       {/* Players */}
       {team.players.length > 0 && (
-        <div className="flex flex-wrap gap-2 mt-2">
+        <div className="flex flex-wrap gap-1.5 mt-2">
           {team.players.map((player) => (
             <span
               key={player.id}
-              className="bg-white px-3 py-1 rounded-full text-sm text-gray-700 border flex items-center gap-1"
+              className="bg-white px-2 py-0.5 rounded-full text-xs text-gray-700 border"
             >
-              📱 {player.displayName}
+              {player.displayName}
             </span>
           ))}
         </div>
@@ -306,11 +306,11 @@ function TeamCard({ team, isMyTeam, gameId, playerId, onCrewAdded }: TeamCardPro
 
       {/* Crew Members */}
       {team.crewMembers && team.crewMembers.length > 0 && (
-        <div className="flex flex-wrap gap-2 mt-2">
+        <div className="flex flex-wrap gap-1.5 mt-1.5">
           {team.crewMembers.map((crew) => (
             <span
               key={crew.id}
-              className="bg-gray-100 px-3 py-1 rounded-full text-sm text-gray-600 border border-dashed flex items-center gap-1"
+              className="bg-gray-100 px-2 py-0.5 rounded-full text-xs text-gray-600 border border-dashed flex items-center gap-1"
             >
               👤 {crew.displayName}
             </span>
@@ -322,7 +322,7 @@ function TeamCard({ team, isMyTeam, gameId, playerId, onCrewAdded }: TeamCardPro
       {canAddCrew && !showAddCrew && (
         <button
           onClick={() => setShowAddCrew(true)}
-          className="mt-3 text-blue-600 hover:text-blue-700 text-sm flex items-center gap-1"
+          className="mt-2 text-blue-600 hover:text-blue-700 text-xs flex items-center gap-1"
         >
           <FontAwesomeIcon icon={faUserPlus} />
           Add teammate without phone
@@ -331,14 +331,14 @@ function TeamCard({ team, isMyTeam, gameId, playerId, onCrewAdded }: TeamCardPro
 
       {/* Add Crew Form */}
       {showAddCrew && (
-        <div className="mt-3 bg-white rounded-lg p-3 border">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-700">Add Crew Member</span>
+        <div className="mt-2 bg-white rounded-lg p-2 border">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-medium text-gray-700">Add Crew Member</span>
             <button
               onClick={() => { setShowAddCrew(false); setError(''); setCrewName(''); }}
               className="text-gray-400 hover:text-gray-600"
             >
-              <FontAwesomeIcon icon={faTimes} />
+              <FontAwesomeIcon icon={faTimes} className="text-sm" />
             </button>
           </div>
           <p className="text-xs text-gray-500 mb-2">
@@ -351,13 +351,13 @@ function TeamCard({ team, isMyTeam, gameId, playerId, onCrewAdded }: TeamCardPro
               onChange={(e) => { setCrewName(e.target.value); setError(''); }}
               placeholder="Name"
               maxLength={20}
-              className="flex-1 border rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
+              className="flex-1 border rounded px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400"
               autoFocus
             />
             <button
               onClick={handleAddCrew}
               disabled={addCrewMutation.isPending}
-              className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white px-4 py-2 rounded text-sm font-medium"
+              className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white px-3 py-1.5 rounded text-sm font-medium"
             >
               {addCrewMutation.isPending ? (
                 <FontAwesomeIcon icon={faSpinner} className="animate-spin" />

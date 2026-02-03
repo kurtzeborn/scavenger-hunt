@@ -1,5 +1,5 @@
 // Game status values
-export type GameStatus = 'lobby' | 'active' | 'paused' | 'judging' | 'complete';
+export type GameStatus = 'lobby' | 'active' | 'paused' | 'judging' | 'revealing' | 'complete';
 
 // Media types for scenarios
 export type MediaType = 'photo' | 'video';
@@ -15,7 +15,7 @@ export type UploadStatus = 'uploading' | 'complete' | 'failed';
 
 // Game configuration
 export interface GameConfig {
-  scenarioCount: 10 | 15 | 20;
+  scenarioCount: number; // 5-20
   timeLimit: number; // Total minutes
   timeLimitPerScenario: number;
 }
@@ -25,6 +25,7 @@ export interface ScenarioRef {
   scenarioId: string;
   order: number;
   bonusAwardedTo?: string; // Team ID that got bonus point
+  disqualifiedTeams?: string[]; // Team IDs that were disqualified for this scenario
 }
 
 // Main game entity

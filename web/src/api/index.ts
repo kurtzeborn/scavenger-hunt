@@ -98,6 +98,61 @@ export async function startGame(gameId: string): Promise<Game> {
   });
 }
 
+export async function pauseGame(gameId: string): Promise<Game> {
+  return apiFetch<Game>(`/games/${gameId}/pause`, {
+    method: 'POST',
+  });
+}
+
+export async function resumeGame(gameId: string): Promise<Game> {
+  return apiFetch<Game>(`/games/${gameId}/resume`, {
+    method: 'POST',
+  });
+}
+
+export async function endGame(gameId: string): Promise<Game> {
+  return apiFetch<Game>(`/games/${gameId}/end`, {
+    method: 'POST',
+  });
+}
+
+export interface AwardBonusRequest {
+  scenarioId: string;
+  teamId: string;
+}
+
+export async function awardBonus(gameId: string, data: AwardBonusRequest): Promise<Game> {
+  return apiFetch<Game>(`/games/${gameId}/bonus`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export interface DisqualifyRequest {
+  scenarioId: string;
+  teamId: string;
+  disqualify: boolean;
+}
+
+export async function disqualifySubmission(gameId: string, data: DisqualifyRequest): Promise<Game> {
+  return apiFetch<Game>(`/games/${gameId}/disqualify`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function completeGame(gameId: string): Promise<Game> {
+  return apiFetch<Game>(`/games/${gameId}/complete`, {
+    method: 'POST',
+  });
+}
+
+export async function finalizeGame(gameId: string): Promise<Game> {
+  return apiFetch<Game>(`/games/${gameId}/finalize`, {
+    method: 'POST',
+  });
+}
+
 // ============ Teams API ============
 
 export interface JoinGameRequest {

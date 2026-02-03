@@ -1,8 +1,10 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { v4 as uuidv4 } from 'uuid';
 import { gamesTable } from '../storage.js';
-import { requireGameKeeper, AuthError, getAuthUser, isGameKeeper } from '../auth.js';
+import { requireGameKeeper, AuthError, getAuthUser, isGameKeeper, AuthUser } from '../auth.js';
 import { Game, GameEntity, GameConfig, ScenarioRef, GAME_CODE_CHARS } from '../types.js';
+
+// ============ Helper Functions ============
 
 // Generate a random 4-letter game code
 function generateGameCode(): string {
@@ -57,6 +59,105 @@ function entityToGame(entity: GameEntity): Game {
     totalPausedSeconds: entity.totalPausedSeconds,
   };
 }
+
+// Error types for game operations
+class GameNotFoundError extends Error {
+  constructor(gameId: string) {
+    super(`Game not found: ${gameId}`);
+    this.name = 'GameNotFoundError';
+  }
+}
+
+class NotGameOwnerError extends Error {
+  constructor() {
+    super('You can only modify your own games');
+    this.name = 'NotGameOwnerError';
+  }
+}
+
+class InvalidGameStateError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidGameStateError';
+  }
+}
+
+class ScenarioNotFoundError extends Error {
+  constructor(scenarioId: string) {
+    super(`Scenario not found in this game: ${scenarioId}`);
+    this.name = 'ScenarioNotFoundError';
+  }
+}
+
+class ValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ValidationError';
+  }
+}
+
+// Get game by ID, throws GameNotFoundError if not found
+async function getGameEntity(gameId: string): Promise<GameEntity> {
+  try {
+    return await gamesTable.getEntity<GameEntity>('game', gameId);
+  } catch (error: any) {
+    if (error.statusCode === 404) {
+      throw new GameNotFoundError(gameId);
+    }
+    throw error;
+  }
+}
+
+// Get game and verify ownership, throws appropriate errors
+async function getOwnedGameEntity(request: HttpRequest, gameId: string): Promise<{ entity: GameEntity; user: AuthUser }> {
+  const user = await requireGameKeeper(request);
+  const entity = await getGameEntity(gameId);
+  
+  if (entity.createdBy !== user.userDetails) {
+    throw new NotGameOwnerError();
+  }
+  
+  return { entity, user };
+}
+
+// Parse gameId from request params
+function getGameIdParam(request: HttpRequest): string {
+  const gameId = request.params.gameId?.toUpperCase();
+  if (!gameId) {
+    throw new Error('Game ID is required');
+  }
+  return gameId;
+}
+
+// Standard error response handler
+function handleError(error: unknown, context: InvocationContext, operation: string): HttpResponseInit {
+  if (error instanceof AuthError) {
+    return { status: error.statusCode, jsonBody: { error: error.message } };
+  }
+  if (error instanceof GameNotFoundError) {
+    return { status: 404, jsonBody: { error: 'Game not found' } };
+  }
+  if (error instanceof ScenarioNotFoundError) {
+    return { status: 404, jsonBody: { error: 'Scenario not found in this game' } };
+  }
+  if (error instanceof NotGameOwnerError) {
+    return { status: 403, jsonBody: { error: error.message } };
+  }
+  if (error instanceof InvalidGameStateError) {
+    return { status: 400, jsonBody: { error: error.message } };
+  }
+  if (error instanceof ValidationError) {
+    return { status: 400, jsonBody: { error: error.message } };
+  }
+  if (error instanceof Error && error.message === 'Game ID is required') {
+    return { status: 400, jsonBody: { error: error.message } };
+  }
+  
+  context.error(`Failed to ${operation}:`, error);
+  return { status: 500, jsonBody: { error: `Failed to ${operation}` } };
+}
+
+// ============ API Endpoints ============
 
 // POST /api/games - Create a new game
 app.http('createGame', {
@@ -184,33 +285,12 @@ app.http('getGame', {
   route: 'games/{gameId}',
   handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
     try {
-      const gameId = request.params.gameId?.toUpperCase();
+      const gameId = getGameIdParam(request);
+      const entity = await getGameEntity(gameId);
       
-      if (!gameId) {
-        return {
-          status: 400,
-          jsonBody: { error: 'Game ID is required' },
-        };
-      }
-
-      const entity = await gamesTable.getEntity<GameEntity>('game', gameId);
-      
-      return {
-        status: 200,
-        jsonBody: entityToGame(entity),
-      };
-    } catch (error: any) {
-      if (error.statusCode === 404) {
-        return {
-          status: 404,
-          jsonBody: { error: 'Game not found' },
-        };
-      }
-      context.error('Failed to get game:', error);
-      return {
-        status: 500,
-        jsonBody: { error: 'Failed to get game' },
-      };
+      return { status: 200, jsonBody: entityToGame(entity) };
+    } catch (error) {
+      return handleError(error, context, 'get game');
     }
   },
 });
@@ -222,37 +302,8 @@ app.http('updateGame', {
   route: 'games/{gameId}',
   handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
     try {
-      const user = await requireGameKeeper(request);
-      const gameId = request.params.gameId?.toUpperCase();
-      
-      if (!gameId) {
-        return {
-          status: 400,
-          jsonBody: { error: 'Game ID is required' },
-        };
-      }
-
-      // Get existing game
-      let entity: GameEntity;
-      try {
-        entity = await gamesTable.getEntity<GameEntity>('game', gameId);
-      } catch (error: any) {
-        if (error.statusCode === 404) {
-          return {
-            status: 404,
-            jsonBody: { error: 'Game not found' },
-          };
-        }
-        throw error;
-      }
-
-      // Verify ownership
-      if (entity.createdBy !== user.userDetails) {
-        return {
-          status: 403,
-          jsonBody: { error: 'You can only update your own games' },
-        };
-      }
+      const gameId = getGameIdParam(request);
+      const { entity } = await getOwnedGameEntity(request, gameId);
 
       const body = await request.json() as Partial<{
         config: GameConfig;
@@ -276,22 +327,9 @@ app.http('updateGame', {
 
       await gamesTable.updateEntity(entity, 'Merge');
 
-      return {
-        status: 200,
-        jsonBody: entityToGame(entity),
-      };
+      return { status: 200, jsonBody: entityToGame(entity) };
     } catch (error) {
-      if (error instanceof AuthError) {
-        return {
-          status: error.statusCode,
-          jsonBody: { error: error.message },
-        };
-      }
-      context.error('Failed to update game:', error);
-      return {
-        status: 500,
-        jsonBody: { error: 'Failed to update game' },
-      };
+      return handleError(error, context, 'update game');
     }
   },
 });
@@ -303,59 +341,17 @@ app.http('deleteGame', {
   route: 'games/{gameId}',
   handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
     try {
-      const user = await requireGameKeeper(request);
-      const gameId = request.params.gameId?.toUpperCase();
-      
-      if (!gameId) {
-        return {
-          status: 400,
-          jsonBody: { error: 'Game ID is required' },
-        };
-      }
-
-      // Get existing game
-      let entity: GameEntity;
-      try {
-        entity = await gamesTable.getEntity<GameEntity>('game', gameId);
-      } catch (error: any) {
-        if (error.statusCode === 404) {
-          return {
-            status: 404,
-            jsonBody: { error: 'Game not found' },
-          };
-        }
-        throw error;
-      }
-
-      // Verify ownership
-      if (entity.createdBy !== user.userDetails) {
-        return {
-          status: 403,
-          jsonBody: { error: 'You can only delete your own games' },
-        };
-      }
+      const gameId = getGameIdParam(request);
+      await getOwnedGameEntity(request, gameId);
 
       // Delete the game
       await gamesTable.deleteEntity('game', gameId);
 
       // TODO: Also delete teams, media submissions, and blobs
 
-      return {
-        status: 204,
-        body: undefined,
-      };
+      return { status: 204, body: undefined };
     } catch (error) {
-      if (error instanceof AuthError) {
-        return {
-          status: error.statusCode,
-          jsonBody: { error: error.message },
-        };
-      }
-      context.error('Failed to delete game:', error);
-      return {
-        status: 500,
-        jsonBody: { error: 'Failed to delete game' },
-      };
+      return handleError(error, context, 'delete game');
     }
   },
 });
@@ -367,41 +363,11 @@ app.http('startGame', {
   route: 'games/{gameId}/start',
   handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
     try {
-      const user = await requireGameKeeper(request);
-      const gameId = request.params.gameId?.toUpperCase();
-      
-      if (!gameId) {
-        return {
-          status: 400,
-          jsonBody: { error: 'Game ID is required' },
-        };
-      }
-
-      let entity: GameEntity;
-      try {
-        entity = await gamesTable.getEntity<GameEntity>('game', gameId);
-      } catch (error: any) {
-        if (error.statusCode === 404) {
-          return {
-            status: 404,
-            jsonBody: { error: 'Game not found' },
-          };
-        }
-        throw error;
-      }
-
-      if (entity.createdBy !== user.userDetails) {
-        return {
-          status: 403,
-          jsonBody: { error: 'You can only start your own games' },
-        };
-      }
+      const gameId = getGameIdParam(request);
+      const { entity } = await getOwnedGameEntity(request, gameId);
 
       if (entity.status !== 'lobby') {
-        return {
-          status: 400,
-          jsonBody: { error: 'Game can only be started from lobby status' },
-        };
+        throw new InvalidGameStateError('Game can only be started from lobby status');
       }
 
       const now = new Date();
@@ -414,22 +380,326 @@ app.http('startGame', {
 
       await gamesTable.updateEntity(entity, 'Merge');
 
+      return { status: 200, jsonBody: entityToGame(entity) };
+    } catch (error) {
+      return handleError(error, context, 'start game');
+    }
+  },
+});
+
+// POST /api/games/:id/pause - Pause the game
+app.http('pauseGame', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'games/{gameId}/pause',
+  handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
+    try {
+      const gameId = getGameIdParam(request);
+      const { entity } = await getOwnedGameEntity(request, gameId);
+
+      if (entity.status !== 'active') {
+        throw new InvalidGameStateError('Game can only be paused when active');
+      }
+
+      entity.status = 'paused';
+      entity.pausedAt = new Date();
+
+      await gamesTable.updateEntity(entity, 'Merge');
+
+      return { status: 200, jsonBody: entityToGame(entity) };
+    } catch (error) {
+      return handleError(error, context, 'pause game');
+    }
+  },
+});
+
+// POST /api/games/:id/resume - Resume the game
+app.http('resumeGame', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'games/{gameId}/resume',
+  handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
+    try {
+      const gameId = getGameIdParam(request);
+      const { entity } = await getOwnedGameEntity(request, gameId);
+
+      if (entity.status !== 'paused') {
+        throw new InvalidGameStateError('Game can only be resumed when paused');
+      }
+
+      // Calculate how long the game was paused
+      const pausedAt = entity.pausedAt ? new Date(entity.pausedAt) : new Date();
+      const pauseDurationSeconds = Math.floor((Date.now() - pausedAt.getTime()) / 1000);
+      
+      // Add pause duration to total and extend endsAt
+      entity.totalPausedSeconds = (entity.totalPausedSeconds || 0) + pauseDurationSeconds;
+      if (entity.endsAt) {
+        entity.endsAt = new Date(new Date(entity.endsAt).getTime() + pauseDurationSeconds * 1000);
+      }
+      
+      entity.status = 'active';
+      entity.pausedAt = undefined;
+
+      await gamesTable.updateEntity(entity, 'Merge');
+
+      return { status: 200, jsonBody: entityToGame(entity) };
+    } catch (error) {
+      return handleError(error, context, 'resume game');
+    }
+  },
+});
+
+// POST /api/games/:id/end - End the game and move to judging
+app.http('endGame', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'games/{gameId}/end',
+  handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
+    try {
+      const gameId = getGameIdParam(request);
+      const { entity } = await getOwnedGameEntity(request, gameId);
+
+      if (entity.status !== 'active' && entity.status !== 'paused') {
+        throw new InvalidGameStateError('Game can only be ended when active or paused');
+      }
+
+      entity.status = 'judging';
+      entity.pausedAt = undefined;
+
+      await gamesTable.updateEntity(entity, 'Merge');
+
+      return { status: 200, jsonBody: entityToGame(entity) };
+    } catch (error) {
+      return handleError(error, context, 'end game');
+    }
+  },
+});
+
+// POST /api/games/:id/bonus - Award bonus point for a scenario
+app.http('awardBonus', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'games/{gameId}/bonus',
+  handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
+    try {
+      const gameId = getGameIdParam(request);
+      const body = await request.json() as { scenarioId: string; teamId: string };
+      
+      if (!body.scenarioId || !body.teamId) {
+        throw new ValidationError('scenarioId and teamId are required');
+      }
+
+      const { entity } = await getOwnedGameEntity(request, gameId);
+
+      if (entity.status !== 'judging') {
+        throw new InvalidGameStateError('Bonuses can only be awarded during judging phase');
+      }
+
+      // Update the scenario ref with the bonus
+      const scenarios: ScenarioRef[] = JSON.parse(entity.scenarios);
+      const scenarioRef = scenarios.find(s => s.scenarioId === body.scenarioId);
+      
+      if (!scenarioRef) {
+        throw new ScenarioNotFoundError(body.scenarioId);
+      }
+
+      scenarioRef.bonusAwardedTo = body.teamId;
+      entity.scenarios = JSON.stringify(scenarios);
+
+      await gamesTable.updateEntity(entity, 'Merge');
+
+      return { status: 200, jsonBody: entityToGame(entity) };
+    } catch (error) {
+      return handleError(error, context, 'award bonus');
+    }
+  },
+});
+
+// POST /api/games/:id/disqualify - Disqualify or un-disqualify a team's submission for a scenario
+app.http('disqualifySubmission', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'games/{gameId}/disqualify',
+  handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
+    try {
+      const gameId = getGameIdParam(request);
+      const body = await request.json() as { scenarioId: string; teamId: string; disqualify: boolean };
+      
+      if (!body.scenarioId || !body.teamId || typeof body.disqualify !== 'boolean') {
+        throw new ValidationError('scenarioId, teamId, and disqualify (boolean) are required');
+      }
+
+      const { entity } = await getOwnedGameEntity(request, gameId);
+
+      if (entity.status !== 'judging') {
+        throw new InvalidGameStateError('Disqualifications can only be made during judging phase');
+      }
+
+      // Update the scenario ref with disqualification
+      const scenarios: ScenarioRef[] = JSON.parse(entity.scenarios);
+      const scenarioRef = scenarios.find(s => s.scenarioId === body.scenarioId);
+      
+      if (!scenarioRef) {
+        throw new ScenarioNotFoundError(body.scenarioId);
+      }
+
+      // Initialize array if needed
+      if (!scenarioRef.disqualifiedTeams) {
+        scenarioRef.disqualifiedTeams = [];
+      }
+
+      if (body.disqualify) {
+        // Add to disqualified list if not already there
+        if (!scenarioRef.disqualifiedTeams.includes(body.teamId)) {
+          scenarioRef.disqualifiedTeams.push(body.teamId);
+        }
+        // Remove bonus if this team had it
+        if (scenarioRef.bonusAwardedTo === body.teamId) {
+          scenarioRef.bonusAwardedTo = undefined;
+        }
+      } else {
+        // Remove from disqualified list
+        scenarioRef.disqualifiedTeams = scenarioRef.disqualifiedTeams.filter(id => id !== body.teamId);
+      }
+
+      entity.scenarios = JSON.stringify(scenarios);
+
+      await gamesTable.updateEntity(entity, 'Merge');
+
+      return { status: 200, jsonBody: entityToGame(entity) };
+    } catch (error) {
+      return handleError(error, context, 'disqualify submission');
+    }
+  },
+});
+
+// POST /api/games/:id/complete - Start the reveal animation phase
+app.http('completeGame', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'games/{gameId}/complete',
+  handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
+    try {
+      const gameId = getGameIdParam(request);
+      const { entity } = await getOwnedGameEntity(request, gameId);
+
+      if (entity.status !== 'judging') {
+        throw new InvalidGameStateError('Game can only be completed from judging phase');
+      }
+
+      // Set to 'revealing' - players will wait while gamekeeper sees the animation
+      entity.status = 'revealing';
+
+      await gamesTable.updateEntity(entity, 'Merge');
+
+      return { status: 200, jsonBody: entityToGame(entity) };
+    } catch (error) {
+      return handleError(error, context, 'complete game');
+    }
+  },
+});
+
+// POST /api/games/:id/finalize - Finish the reveal and mark game as complete
+app.http('finalizeGame', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'games/{gameId}/finalize',
+  handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
+    try {
+      const gameId = getGameIdParam(request);
+      const { entity } = await getOwnedGameEntity(request, gameId);
+
+      if (entity.status !== 'revealing') {
+        throw new InvalidGameStateError('Game can only be finalized from revealing phase');
+      }
+
+      entity.status = 'complete';
+
+      await gamesTable.updateEntity(entity, 'Merge');
+
+      return { status: 200, jsonBody: entityToGame(entity) };
+    } catch (error) {
+      return handleError(error, context, 'finalize game');
+    }
+  },
+});
+
+// GET /api/games/:id/download - Proxy download with Content-Disposition header
+// This bypasses CORS issues and triggers proper browser download behavior
+app.http('downloadMedia', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'games/{gameId}/download',
+  handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
+    try {
+      const gameId = request.params.gameId?.toUpperCase();
+      const blobUrl = request.query.get('url');
+      const filename = request.query.get('filename') || 'download';
+
+      if (!gameId) {
+        return { status: 400, jsonBody: { error: 'Game ID is required' } };
+      }
+
+      if (!blobUrl) {
+        return { status: 400, jsonBody: { error: 'Missing url parameter' } };
+      }
+
+      // Security: Only allow downloads from our blob storage
+      // In production, this would be the Azure blob storage URL
+      // In development, this is the Azurite URL
+      const allowedHosts = [
+        '127.0.0.1:10000',           // Azurite local
+        'localhost:10000',            // Azurite local alt
+        '.blob.core.windows.net',     // Azure Blob Storage
+      ];
+      
+      try {
+        const urlObj = new URL(blobUrl);
+        const isAllowed = allowedHosts.some(host => 
+          host.startsWith('.') 
+            ? urlObj.hostname.endsWith(host) 
+            : urlObj.host === host
+        );
+        
+        if (!isAllowed) {
+          context.warn(`Blocked download proxy request to unauthorized host: ${urlObj.host}`);
+          return { status: 403, jsonBody: { error: 'Download source not allowed' } };
+        }
+
+        // Security: Verify the blob path contains this game's ID
+        // Blob paths are: /media/{gameId}/{teamId}/{scenarioId}.ext
+        const pathParts = urlObj.pathname.split('/');
+        // Path format: /devstoreaccount1/media/GAMEID/... (local) or /media/GAMEID/... (prod)
+        const gameIdInPath = pathParts.find(part => part === gameId);
+        if (!gameIdInPath) {
+          context.warn(`Blocked download: game ID ${gameId} not found in blob path ${urlObj.pathname}`);
+          return { status: 403, jsonBody: { error: 'Cannot download media from other games' } };
+        }
+      } catch {
+        return { status: 400, jsonBody: { error: 'Invalid URL' } };
+      }
+
+      // Fetch the blob from storage
+      const response = await fetch(blobUrl);
+      if (!response.ok) {
+        context.error(`Failed to fetch blob: ${response.status} ${response.statusText}`);
+        return { status: 502, jsonBody: { error: 'Failed to fetch media' } };
+      }
+
+      const contentType = response.headers.get('content-type') || 'application/octet-stream';
+      const buffer = await response.arrayBuffer();
+
       return {
         status: 200,
-        jsonBody: entityToGame(entity),
+        body: new Uint8Array(buffer),
+        headers: {
+          'Content-Type': contentType,
+          'Content-Disposition': `attachment; filename="${filename}"`,
+          'Content-Length': buffer.byteLength.toString(),
+        },
       };
     } catch (error) {
-      if (error instanceof AuthError) {
-        return {
-          status: error.statusCode,
-          jsonBody: { error: error.message },
-        };
-      }
-      context.error('Failed to start game:', error);
-      return {
-        status: 500,
-        jsonBody: { error: 'Failed to start game' },
-      };
+      return handleError(error, context, 'download media');
     }
   },
 });

@@ -2,6 +2,9 @@ import { HttpRequest } from '@azure/functions';
 import { gamekeepersTable } from './storage.js';
 import { AuthUser, GameKeeperEntity } from './types.js';
 
+// Re-export AuthUser for convenience
+export type { AuthUser };
+
 // Parse the SWA auth header to get user info
 export function getAuthUser(request: HttpRequest): AuthUser | null {
   // In Azure Static Web Apps, the auth info is in a header

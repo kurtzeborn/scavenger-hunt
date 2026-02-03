@@ -4,6 +4,42 @@ import { faPlus, faGamepad, faUserPlus, faArrowLeft } from '@fortawesome/free-so
 import { useAuth } from '../hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { fetchGames } from '../api';
+import type { Game } from '../types';
+
+// Get display status for a game (considers expired timers)
+function getDisplayStatus(game: Game): { label: string; color: string } {
+  if (game.status === 'active' || game.status === 'paused') {
+    const endsAt = game.endsAt ? new Date(game.endsAt) : null;
+    const pausedAt = game.pausedAt ? new Date(game.pausedAt) : null;
+    
+    // If paused, check if it would have expired
+    if (game.status === 'paused' && pausedAt && endsAt) {
+      const wouldBeExpired = endsAt.getTime() <= pausedAt.getTime();
+      if (wouldBeExpired) {
+        return { label: 'Expired (Paused)', color: 'text-orange-600 bg-orange-100' };
+      }
+      return { label: 'Paused', color: 'text-amber-600 bg-amber-100' };
+    }
+    
+    // Check if timer has expired
+    if (endsAt && endsAt.getTime() < Date.now()) {
+      return { label: 'Time Expired', color: 'text-orange-600 bg-orange-100' };
+    }
+    
+    return { label: 'Active', color: 'text-green-600 bg-green-100' };
+  }
+  
+  switch (game.status) {
+    case 'lobby':
+      return { label: 'Lobby', color: 'text-blue-600 bg-blue-100' };
+    case 'judging':
+      return { label: 'Judging', color: 'text-purple-600 bg-purple-100' };
+    case 'complete':
+      return { label: 'Complete', color: 'text-gray-600 bg-gray-100' };
+    default:
+      return { label: game.status, color: 'text-gray-600 bg-gray-100' };
+  }
+}
 
 export function DashboardPage() {
   const navigate = useNavigate();
@@ -84,21 +120,26 @@ export function DashboardPage() {
             <p className="text-gray-500">Loading games...</p>
           ) : games && games.length > 0 ? (
             <div className="grid gap-4">
-              {games.map((game) => (
-                <div
-                  key={game.id}
-                  className="bg-white rounded-lg shadow p-4 flex justify-between items-center cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => navigate(`/game/${game.id}`)}
-                >
-                  <div>
-                    <span className="font-mono text-xl font-bold text-blue-600">{game.id}</span>
-                    <span className="ml-3 text-sm text-gray-500 capitalize">{game.status}</span>
+              {games.map((game) => {
+                const displayStatus = getDisplayStatus(game);
+                return (
+                  <div
+                    key={game.id}
+                    className="bg-white rounded-lg shadow p-4 flex justify-between items-center cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => navigate(`/game/${game.id}`)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-xl font-bold text-blue-600">{game.id}</span>
+                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${displayStatus.color}`}>
+                        {displayStatus.label}
+                      </span>
+                    </div>
+                    <span className="text-sm text-gray-400">
+                      {new Date(game.createdAt).toLocaleDateString()}
+                    </span>
                   </div>
-                  <span className="text-sm text-gray-400">
-                    {new Date(game.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">

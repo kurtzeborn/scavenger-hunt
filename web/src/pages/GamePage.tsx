@@ -1,20 +1,22 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSpinner, faArrowLeft, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
+import { faSpinner, faArrowLeft, faExclamationTriangle, faClock, faTrophy } from '@fortawesome/free-solid-svg-icons';
 import { fetchGame, startGame } from '../api';
 import { useAuth } from '../hooks/useAuth';
 import { usePlayerSession } from '../contexts/PlayerSessionContext';
 import { JoinGameFlow } from '../components/player/JoinGameFlow';
 import { LobbyView } from '../components/game/LobbyView';
 import { ScenarioListView } from '../components/game/ScenarioListView';
+import { JudgingView } from '../components/game/JudgingView';
+import { ResultsView } from '../components/game/ResultsView';
 
 export function GamePage() {
   const { gameCode } = useParams<{ gameCode: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { isGameKeeper, user } = useAuth();
-  const { session, isLoading: sessionLoading, isValidForGame, clearSession } = usePlayerSession();
+  const { session, isLoading: sessionLoading, isValidForGame } = usePlayerSession();
 
   const gameId = gameCode?.toUpperCase() || '';
 
@@ -123,40 +125,51 @@ export function GamePage() {
       return <ScenarioListView game={game} isGameKeeper={isGameKeeperForGame} />;
 
     case 'judging':
-      // TODO: Implement judging view in Phase 3
+      // Game keeper sees the judging interface, players see waiting screen
+      if (isGameKeeperForGame) {
+        return <JudgingView game={game} isGameKeeper={true} />;
+      }
+      
+      // Players see a waiting screen
       return (
-        <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-lg p-8 max-w-md text-center">
-            <h1 className="text-2xl font-bold text-gray-800 mb-2">⚖️ Judging Phase</h1>
-            <p className="text-gray-600 mb-6">
-              The game is being judged. Final scores will be announced soon!
+        <div className="min-h-screen bg-gradient-to-b from-purple-900 via-indigo-900 to-blue-900 flex items-center justify-center p-4">
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-8 max-w-md text-center text-white">
+            <FontAwesomeIcon icon={faClock} className="text-5xl text-purple-300 mb-4 animate-pulse" />
+            <h1 className="text-2xl font-bold mb-2">⚖️ Judging in Progress</h1>
+            <p className="text-white/70 mb-6">
+              The game keeper is reviewing all submissions. Final scores will be revealed soon!
+            </p>
+            <p className="text-purple-300 text-sm">
+              Stay on this page to see the results
+            </p>
+          </div>
+        </div>
+      );
+
+    case 'revealing':
+      // Game keeper sees the reveal animation, players wait
+      if (isGameKeeperForGame) {
+        return <ResultsView game={game} isGameKeeper={true} />;
+      }
+      
+      // Players see a waiting screen during reveal
+      return (
+        <div className="min-h-screen bg-gradient-to-b from-purple-900 via-indigo-900 to-blue-900 flex items-center justify-center p-4">
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-8 max-w-md text-center text-white">
+            <FontAwesomeIcon icon={faTrophy} className="text-5xl text-yellow-400 mb-4 animate-bounce" />
+            <h1 className="text-2xl font-bold mb-2">🎉 Results Being Revealed!</h1>
+            <p className="text-white/70 mb-6">
+              The game keeper is presenting the final standings. Winners will be announced momentarily!
+            </p>
+            <p className="text-purple-300 text-sm animate-pulse">
+              Stay tuned...
             </p>
           </div>
         </div>
       );
 
     case 'complete':
-      // TODO: Implement results view in Phase 3
-      return (
-        <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-lg p-8 max-w-md text-center">
-            <h1 className="text-2xl font-bold text-gray-800 mb-2">🏆 Game Complete</h1>
-            <p className="text-gray-600 mb-6">
-              Thanks for playing! Check with the game keeper for final results.
-            </p>
-            <button
-              onClick={() => {
-                clearSession();
-                navigate('/');
-              }}
-              className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors inline-flex items-center gap-2"
-            >
-              <FontAwesomeIcon icon={faArrowLeft} />
-              Back to Home
-            </button>
-          </div>
-        </div>
-      );
+      return <ResultsView game={game} isGameKeeper={isGameKeeperForGame} />;
 
     default:
       return null;

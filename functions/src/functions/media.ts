@@ -75,6 +75,38 @@ function entityToSubmission(entity: MediaSubmissionEntity): MediaSubmission {
   };
 }
 
+// Generate a read-only SAS URL for a blob (1 hour expiry)
+function generateReadSasUrl(blobName: string): string {
+  const { accountName, accountKey } = getStorageCredentials();
+  const sharedKeyCredential = new StorageSharedKeyCredential(accountName, accountKey);
+
+  const startsOn = new Date();
+  const expiresOn = new Date(startsOn.getTime() + 60 * 60 * 1000); // 1 hour
+
+  const sasToken = generateBlobSASQueryParameters({
+    containerName: 'media',
+    blobName,
+    permissions: BlobSASPermissions.parse('r'), // read only
+    startsOn,
+    expiresOn,
+  }, sharedKeyCredential).toString();
+
+  const baseUrl = getBlobBaseUrl();
+  return `${baseUrl}/media/${blobName}?${sasToken}`;
+}
+
+// Convert entity to MediaSubmission with secure playback URL
+function entityToSubmissionWithSas(entity: MediaSubmissionEntity): MediaSubmission {
+  const submission = entityToSubmission(entity);
+  
+  // Extract blob name from URL and generate fresh SAS URL
+  const extension = entity.mediaType === 'video' ? 'webm' : 'jpg';
+  const blobName = `${entity.partitionKey}/${entity.teamId}/${entity.scenarioId}.${extension}`;
+  submission.blobUrl = generateReadSasUrl(blobName);
+  
+  return submission;
+}
+
 // POST /api/games/:id/videos/upload-url - Get a SAS URL for uploading media
 app.http('getUploadUrl', {
   methods: ['POST'],
@@ -387,7 +419,7 @@ app.http('getMediaSubmissions', {
         if (scenarioId && !entity.rowKey.endsWith(`_${scenarioId}`)) {
           continue;
         }
-        submissions.push(entityToSubmission(entity));
+        submissions.push(entityToSubmissionWithSas(entity));
       }
 
       return {
@@ -443,7 +475,7 @@ app.http('getScenarioVideos', {
 
       for await (const entity of entities) {
         if (entity.scenarioId === scenarioId) {
-          submissions.push(entityToSubmission(entity));
+          submissions.push(entityToSubmissionWithSas(entity));
         }
       }
 

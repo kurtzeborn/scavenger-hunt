@@ -7,7 +7,7 @@ import { fetchScenarios, createGame } from '../api';
 
 export function CreateGamePage() {
   const navigate = useNavigate();
-  const [scenarioCount, setScenarioCount] = useState<10 | 15 | 20>(10);
+  const [scenarioCount, setScenarioCount] = useState(10);
   const [timeLimit, setTimeLimit] = useState(60); // minutes
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedScenarioIds, setSelectedScenarioIds] = useState<Set<string>>(new Set());
@@ -82,18 +82,18 @@ export function CreateGamePage() {
               <label className="block text-gray-700 font-medium mb-2">
                 Number of Scenarios
               </label>
-              <select
+              <input
+                type="number"
                 value={scenarioCount}
                 onChange={(e) => {
-                  setScenarioCount(Number(e.target.value) as 10 | 15 | 20);
+                  const value = Math.max(5, Math.min(20, Number(e.target.value)));
+                  setScenarioCount(value);
                   setSelectedScenarioIds(new Set()); // Reset selection
                 }}
+                min={5}
+                max={20}
                 className="w-full border border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:outline-none"
-              >
-                <option value={10}>10 scenarios</option>
-                <option value={15}>15 scenarios</option>
-                <option value={20}>20 scenarios</option>
-              </select>
+              />
             </div>
 
             <div>

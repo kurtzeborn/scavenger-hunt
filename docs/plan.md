@@ -909,12 +909,61 @@ Support for team members who participate but don't have their own device, plus a
 - Messaging: "Don't have a phone? Ask a teammate to add you as crew!"
 - Late joiners see all scenarios and can immediately start capturing
 
-### Phase 3: Real-Time & Scoring (Week 5)
-- [ ] Polling-based scoreboard updates
-- [ ] Game timer implementation
-- [ ] End-of-game state transitions
-- [ ] Judging phase video playback
-- [ ] Bonus point awarding
+### Phase 3: Real-Time & Scoring (Week 5) ✅ COMPLETE
+
+**Backend - Game Control:**
+- [x] `POST /api/games/:id/pause` - Set status to 'paused', record `pausedAt` timestamp
+- [x] `POST /api/games/:id/resume` - Set status to 'active', add elapsed pause time to `totalPausedSeconds`, extend `endsAt`
+- [x] `POST /api/games/:id/end` - Transition game to 'judging' status (validates game is active/paused)
+- [x] `POST /api/games/:id/complete` - Finish judging and transition to 'complete' status
+
+**Backend - Scoring:**
+- [x] `POST /api/games/:id/bonus` - Award bonus point for a scenario to a team
+  - Body: `{ scenarioId: string, teamId: string }` (teamId can be changed until game is complete)
+  - Updates `ScenarioRef.bonusAwardedTo` in game entity
+
+**Backend - Video Retrieval:**
+- [x] `GET /api/games/:id/videos` - Get all videos for a game (judging phase)
+- [x] `GET /api/games/:id/videos/:scenarioId` - Get videos for specific scenario
+  - Returns secure blob URLs with read-only SAS tokens (1-hour expiry)
+
+**Frontend - Timer Improvements:**
+- [x] Timer color changes: green (>10 min) → yellow (≤10 min) → red (≤1 min)
+- [x] Auto-transition to "Time's Up" screen when timer expires
+- [x] Pause indicator when game is paused (frozen timer, overlay message)
+- [x] Game keeper controls: Pause/Resume buttons, "End Game" button
+
+**Frontend - Judging Phase (Carousel UX):**
+- [x] Scenario carousel: navigate through scenarios with prev/next and dot navigation
+- [x] Grid layout of team video thumbnails for each scenario
+- [x] Tap thumbnail to play video/view photo in modal with controls
+- [x] Star icon on each thumbnail (radio-button style, one selected per scenario)
+- [x] "Previous" / "Next" navigation buttons
+- [x] "Finish" button on last scenario → transition to 'complete'
+
+**Frontend - Results Screen (Dramatic Reveal):**
+- [x] Reveal teams one-by-one from worst to best (~2 second delay between)
+- [x] Show position, team name, team color, and final score
+- [x] Ties display at same position (e.g., "1st Place: Team A, Team B")
+- [x] Winner announcement banner with animation
+- [x] "New Game" and "Back to Dashboard" buttons for game keeper
+- [x] "Skip animation" option for impatient users
+
+**Frontend - State Transitions:**
+- [x] Players: "Time's Up" screen when timer expires, waiting for judging
+- [x] Players: Waiting screen during judging phase
+- [x] Players: Results screen after game is complete
+- [x] Handle `paused` state: show pause overlay, disable captures
+
+**Design Decisions (Phase 3):**
+- No vibration alerts (removed)
+- Ties are acceptable (no tie-breaker logic)
+- Bonus points changeable until "Finish Judging" is clicked
+- Game keeper can end game early even if time remains
+
+**Deferred to Phase 4:**
+- 60-second grace period for in-progress uploads
+- GET /api/games/:id/scores endpoint (scores calculated client-side from teams + game data)
 
 ### Phase 4: Polish & Deployment (Week 6)
 - [ ] PWA manifest and service worker
