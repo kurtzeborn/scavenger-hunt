@@ -23,7 +23,7 @@ A multiplayer video scavenger hunt game where teams compete to act out scenarios
 
 | Requirement | Value |
 |------------|-------|
-| Team Size | 2-6 players |
+| Team Size | 2-6 members (players + crew combined) |
 | Teams per Game | 2-20 teams |
 | Scenarios per Game | 10 (default), 15, or 20 |
 | Time Limit | 6 min/scenario default (60 min for 10), configurable |
@@ -232,6 +232,7 @@ interface Team {
   name: string;                  // Max 20 chars, duplicates allowed
   color: string;                 // Auto-assigned from 8-color palette
   players: Player[];
+  crewMembers: CrewMember[];     // Team members without phones
   completedScenarios: string[];  // Scenario IDs
 }
 
@@ -239,6 +240,13 @@ interface Player {
   id: string;                    // Session-generated ID
   displayName: string;           // Duplicates allowed; identified by team + name
   joinedAt: Date;
+}
+
+interface CrewMember {
+  id: string;                    // Generated ID
+  displayName: string;           // Max 20 chars, same as players
+  addedBy: string;               // Player ID who added them
+  addedAt: Date;
 }
 ```
 
@@ -322,6 +330,7 @@ DELETE /api/games/:id                Delete game and all videos
 ```
 POST   /api/games/:id/join           Join game (select team, set name)
 GET    /api/games/:id/teams          Get all teams and completion counts
+POST   /api/games/:id/teams/:teamId/crew  Add crew member (teammate without phone)
 ```
 
 ### Videos
@@ -448,14 +457,33 @@ All users arrive at the same landing page. The UI adapts based on authentication
 
 ### 9.2 Player Flow
 
-**Initial Join:**
+**Initial Join (Lobby):**
 ```
 1. Scan QR code or enter game code → navigates to vsh.k61.dev/game/ABC123
 2. Enter display name
 3. Select team (or create new team)
 4. Session saved to localStorage
 5. Wait in Lobby
-   - See team members, other teams
+   - See team members (players and crew), other teams
+   - Option to "Add Crew Member" for teammates without phones
+```
+
+**Late Join (Game in Progress):**
+```
+1. Scan QR code or enter game code
+2. See message: "Game in progress! Join an existing team to jump in."
+3. Enter display name
+4. Select from teams with open slots (no "Create New Team" option)
+   - If all teams full: "Sorry, all teams are full."
+5. Session saved to localStorage
+6. Immediately see scenario list and can start capturing
+```
+
+**Join Blocked (Game Ended):**
+```
+1. Scan QR code or enter game code
+2. See message: "This game has ended."
+3. No join options available
 ```
 
 **Page Refresh / Return:**
@@ -476,6 +504,7 @@ All users arrive at the same landing page. The UI adapts based on authentication
    - Preview and confirm upload
    - See scenario marked complete
    - View mini scoreboard (completion counts)
+   - Can still add crew members (if team not at 6-member limit)
 2. Time's Up
    - See final completion scoreboard
    - Wait for game keeper to start judging
@@ -832,6 +861,50 @@ scavenger-hunt/
 - [x] Video upload to Blob Storage
 - [x] Scenario completion tracking
 
+### Phase 2.1: Crew Members & Late Joining
+Support for team members who participate but don't have their own device, plus allowing players to join teams after the game has started.
+
+**Backend - Crew Members:**
+- [ ] Add `crewMembers` array to Team entity in Table Storage
+- [ ] Create `POST /api/games/:id/teams/:teamId/crew` endpoint
+  - Validates: game exists, team exists, caller is team member, team not at 6-member limit
+  - Adds crew member with generated ID, display name, addedBy, addedAt
+  - Returns updated team
+- [ ] Update `GET /api/games/:id/teams` to include crew members in response
+- [ ] Enforce combined player + crew limit of 6 per team
+
+**Backend - Late Player Joining:**
+- [ ] Update `POST /api/games/:id/join` to allow joins when game status is `active` or `paused`
+  - Reject if status is `judging` or `complete`
+  - Reject if trying to create a new team (existing teams only after game starts)
+  - Only show teams with open slots (< 6 members)
+  - If all teams are full, return error with friendly message
+
+**Frontend - Crew Members:**
+- [ ] Add "Add Crew Member" button in team roster (lobby and active game)
+- [ ] Simple modal: enter crew member name (max 20 chars)
+- [ ] Display crew members in team roster with distinct icon (e.g., 👤 vs 📱)
+- [ ] Show crew members in game keeper's lobby view
+- [ ] Update team member count display to show "X players, Y crew"
+
+**Frontend - Late Player Joining:**
+- [ ] Update JoinGameFlow to detect game state
+- [ ] If game is `active` or `paused`:
+  - Show message: "Game in progress! Join an existing team to jump in."
+  - Hide "Create New Team" option
+  - Only display teams with available slots
+  - If no teams have slots: "Sorry, all teams are full."
+- [ ] If game is `judging` or `complete`:
+  - Show message: "This game has ended."
+  - No join options available
+
+**UX Considerations:**
+- Crew members cannot be removed once added
+- Crew members cannot "upgrade" to players
+- Crew members are visible to all team members and game keeper
+- Messaging: "Don't have a phone? Ask a teammate to add you as crew!"
+- Late joiners see all scenarios and can immediately start capturing
+
 ### Phase 3: Real-Time & Scoring (Week 5)
 - [ ] Polling-based scoreboard updates
 - [ ] Game timer implementation
@@ -903,7 +976,8 @@ Here are sample scenarios to seed the library. Each scenario specifies a **media
 | Decision | Resolution |
 |----------|------------|
 | **Team Creation** | Self-organizing: Players create/join teams when entering game. First player names the team, others can join existing teams or create new ones (up to max 20 teams). |
-| **Team Locking** | Yes, teams lock once game starts. No late joiners during active gameplay. |
+| **Crew Members** | Team members without phones. Any player can add crew members. Can be added in lobby or during active game. Count toward 6-member team limit. Cannot be removed or upgraded to players. |
+| **Team Locking** | Teams lock once game starts (no new teams created). However, players can still join existing teams with open slots during `active` or `paused` states. No joins during `judging` or `complete`. |
 | **Empty Teams** | Auto-deleted if empty when game starts. |
 | **Minimum to Start** | At least 2 teams with 1+ players each required. |
 | **Player Kick** | Not in MVP; game keeper can delete entire game if needed. |

@@ -16,9 +16,10 @@ For local testing setup, see [docs/DEVELOPMENT.md](../docs/DEVELOPMENT.md).
 
 ## Commit Standards
 
-- **Keep commit messages concise** - 3-5 bullet points max, ~5 words each
+- **Keep commit messages concise** - 3-5 points max in comma separated list, ~5 words each
 - Use short, action-oriented phrases (e.g., "Add player join flow" not "Added the player join flow with game code entry and team selection")
 - Stage all related files together
+- Keep the root README.md simple and link to docs for details
 
 ## Code Quality
 
