@@ -93,24 +93,27 @@ jobs:
           template: ./infra/main.bicep
           parameters: >
             environment=prod
-            customDomain=vsh.k61.dev
           failOnStdErr: false
 
       - name: Configure App Settings
         if: success()
         run: |
-          # Get Static Web App name
+          # Get resource names
           SWA_NAME=$(az staticwebapp list --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query "[0].name" -o tsv)
+          STORAGE_NAME=$(az storage account list --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query "[0].name" -o tsv)
           
-          # Set Entra ID credentials if provided
-          if [ -n "${{ secrets.AZURE_CLIENT_ID }}" ]; then
-            az staticwebapp appsettings set \
-              --name $SWA_NAME \
-              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-              --setting-names \
-                AZURE_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }} \
-                AZURE_CLIENT_SECRET=${{ secrets.AZURE_CLIENT_SECRET }}
-          fi
+          # Get storage connection string
+          STORAGE_CONN=$(az storage account show-connection-string --name $STORAGE_NAME --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query connectionString -o tsv)
+          
+          # Set all app settings
+          az staticwebapp appsettings set \
+            --name $SWA_NAME \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --setting-names \
+              AZURE_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }} \
+              AZURE_CLIENT_SECRET=${{ secrets.AZURE_CLIENT_SECRET }} \
+              AzureWebJobsStorage="$STORAGE_CONN" \
+              AZURE_STORAGE_CONNECTION_STRING="$STORAGE_CONN"
 
   deploy-app:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -159,36 +162,3 @@ jobs:
           output_location: ''
           skip_app_build: true
           skip_api_build: true
-
-  # PR preview (no infrastructure changes)
-  # Note: Disabled until AZURE_STATIC_WEB_APPS_API_TOKEN secret is configured
-  # preview:
-  #   if: github.event_name == 'pull_request'
-  #   runs-on: ubuntu-latest
-  #   needs: build
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Download web build
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: web-build
-  #         path: web/dist
-  #     - name: Download functions build
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: functions-build
-  #         path: functions
-  #     - name: Install functions production dependencies
-  #       working-directory: functions
-  #       run: npm ci --omit=dev
-  #     - name: Deploy PR Preview
-  #       uses: Azure/static-web-apps-deploy@v1
-  #       with:
-  #         azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
-  #         repo_token: ${{ secrets.GITHUB_TOKEN }}
-  #         action: 'upload'
-  #         app_location: 'web/dist'
-  #         api_location: 'functions'
-  #         output_location: ''
-  #         skip_app_build: true
-  #         skip_api_build: true

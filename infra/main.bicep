@@ -17,14 +17,6 @@ param location string = resourceGroup().location
 @description('Custom domain for the Static Web App (e.g., vsh.k61.dev)')
 param customDomain string = ''
 
-@description('Entra ID Client ID for authentication')
-@secure()
-param entraClientId string = ''
-
-@description('Entra ID Client Secret for authentication')
-@secure()
-param entraClientSecret string = ''
-
 @description('Tags to apply to all resources')
 param tags object = {
   project: 'video-scavenger-hunt'
@@ -111,39 +103,16 @@ module staticSite 'br/public:avm/res/web/static-site:0.7.0' = {
     tags: tags
     sku: 'Free'
     
-    // App settings (available to linked Functions)
-    appSettings: {
-      // Storage connection string will be set by GitHub Actions
-    }
-    
-    // Function app settings
-    functionAppSettings: {
-      AzureWebJobsStorage: storageAccount.outputs.primaryConnectionString
-      AZURE_STORAGE_CONNECTION_STRING: storageAccount.outputs.primaryConnectionString
-    }
+    // Note: App settings (including storage connection string) are set 
+    // via GitHub Actions after deployment to avoid Bicep secure string limitations
     
     // Custom domain (optional - requires DNS validation first)
     customDomains: customDomain != '' ? [customDomain] : []
   }
 }
 
-// ============================================================================
-// SWA Configuration for Entra ID Auth
-// ============================================================================
-
-// Note: Entra ID configuration is applied via staticwebapp.config.json
-// The AZURE_CLIENT_ID and AZURE_CLIENT_SECRET are set as app settings
-// via GitHub Actions after deployment
-
-resource staticSiteSettings 'Microsoft.Web/staticSites/config@2022-03-01' = if (entraClientId != '' && entraClientSecret != '') {
-  name: '${staticSiteName}/appsettings'
-  dependsOn: [staticSite]
-  properties: {
-    AZURE_CLIENT_ID: entraClientId
-    AZURE_CLIENT_SECRET: entraClientSecret
-    AZURE_STORAGE_CONNECTION_STRING: storageAccount.outputs.primaryConnectionString
-  }
-}
+// Note: Entra ID configuration and storage connection string are set
+// via GitHub Actions workflow after deployment
 
 // ============================================================================
 // Outputs
