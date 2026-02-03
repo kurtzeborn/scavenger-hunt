@@ -11,8 +11,11 @@ targetScope = 'resourceGroup'
 @allowed(['prod', 'dev'])
 param environment string = 'prod'
 
-@description('Azure region for resources')
+@description('Azure region for storage resources')
 param location string = resourceGroup().location
+
+@description('Azure region for Static Web App (SWA availability varies by region)')
+param swaLocation string = 'centralus'
 
 @description('Custom domain for the Static Web App (e.g., vsh.k61.dev)')
 param customDomain string = ''
@@ -99,7 +102,7 @@ module staticSite 'br/public:avm/res/web/static-site:0.7.0' = {
   name: 'staticSiteDeployment'
   params: {
     name: staticSiteName
-    location: location
+    location: swaLocation
     tags: tags
     sku: 'Free'
     
