@@ -148,6 +148,12 @@ jobs:
         run: |
           # SWA needs local.settings.json to detect the runtime
           cp local.settings.deploy.json local.settings.json
+          echo "=== Functions folder structure ==="
+          find . -type f | head -50
+          echo "=== package.json main field ==="
+          cat package.json | grep main
+          echo "=== host.json ==="
+          cat host.json
 
       - name: Azure Login
         uses: azure/login@v2
