@@ -110,6 +110,7 @@ jobs:
             --name $SWA_NAME \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --setting-names \
+              FUNCTIONS_WORKER_RUNTIME=node \
               AZURE_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }} \
               AZURE_CLIENT_SECRET=${{ secrets.AZURE_CLIENT_SECRET }} \
               AzureWebJobsStorage="$STORAGE_CONN" \
@@ -137,6 +138,12 @@ jobs:
       - name: Install functions production dependencies
         working-directory: functions
         run: npm ci --omit=dev
+
+      - name: Prepare functions for SWA deployment
+        working-directory: functions
+        run: |
+          # SWA needs local.settings.json to detect the runtime
+          cp local.settings.deploy.json local.settings.json
 
       - name: Azure Login
         uses: azure/login@v2

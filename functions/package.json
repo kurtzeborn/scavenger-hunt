@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Azure Functions API for Video Scavenger Hunt",
   "main": "dist/src/functions/*.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
