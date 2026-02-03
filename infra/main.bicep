@@ -48,6 +48,10 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.19.0' = {
     kind: 'StorageV2'
     allowBlobPublicAccess: false
     allowSharedKeyAccess: true  // Required for Azure Functions
+    publicNetworkAccess: 'Enabled'  // Required for SWA managed functions
+    networkAcls: {
+      defaultAction: 'Allow'  // SWA managed functions need network access
+    }
     
     // Blob services with containers and lifecycle policy
     blobServices: {
