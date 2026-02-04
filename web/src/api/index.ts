@@ -286,6 +286,26 @@ export async function fetchScenarios(): Promise<Scenario[]> {
   return apiFetch<Scenario[]>('/scenarios');
 }
 
+// ============ Game Keepers API ============
+
+export interface GameKeeper {
+  email: string;
+  displayName: string;
+  addedAt: Date;
+}
+
+export interface InviteGameKeeperRequest {
+  email: string;
+  displayName?: string;
+}
+
+export async function inviteGameKeeper(data: InviteGameKeeperRequest): Promise<GameKeeper> {
+  return apiFetch<GameKeeper>('/gamekeepers', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
 // ============ Auth API ============
 
 export interface MeResponse {

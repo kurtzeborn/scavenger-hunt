@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faGamepad, faUserPlus, faArrowLeft, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faGamepad, faUserPlus, faArrowLeft, faTrash, faTimes, faCheck } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../hooks/useAuth';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchGames, deleteGame } from '../api';
+import { fetchGames, deleteGame, inviteGameKeeper } from '../api';
 import { ConfirmModal } from '../components/shared/ConfirmModal';
 import type { Game } from '../types';
 
@@ -48,6 +48,9 @@ export function DashboardPage() {
   const queryClient = useQueryClient();
   const { isLoading: authLoading, isAuthenticated, isGameKeeper, user, signOut } = useAuth();
   const [gameToDelete, setGameToDelete] = useState<Game | null>(null);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
 
   const { data: games, isLoading: gamesLoading } = useQuery({
     queryKey: ['my-games'],
@@ -60,6 +63,18 @@ export function DashboardPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-games'] });
       setGameToDelete(null);
+    },
+  });
+
+  const inviteMutation = useMutation({
+    mutationFn: inviteGameKeeper,
+    onSuccess: (data) => {
+      setInviteSuccess(`${data.email} is now a game keeper!`);
+      setInviteEmail('');
+      setTimeout(() => {
+        setShowInviteModal(false);
+        setInviteSuccess(null);
+      }, 2000);
     },
   });
 
@@ -102,6 +117,84 @@ export function DashboardPage() {
         onCancel={() => setGameToDelete(null)}
       />
 
+      {/* Invite Game Keeper Modal */}
+      {showInviteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-800">Invite Game Keeper</h2>
+              <button
+                onClick={() => {
+                  setShowInviteModal(false);
+                  setInviteEmail('');
+                  setInviteSuccess(null);
+                  inviteMutation.reset();
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <FontAwesomeIcon icon={faTimes} />
+              </button>
+            </div>
+
+            {inviteSuccess ? (
+              <div className="text-center py-4">
+                <FontAwesomeIcon icon={faCheck} className="text-green-500 text-4xl mb-3" />
+                <p className="text-green-600 font-medium">{inviteSuccess}</p>
+              </div>
+            ) : (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (inviteEmail.trim()) {
+                    inviteMutation.mutate({ email: inviteEmail.trim() });
+                  }
+                }}
+              >
+                <label className="block text-gray-700 font-medium mb-2">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="jane@example.com"
+                  className="w-full border border-gray-300 rounded-lg p-3 mb-4 focus:border-blue-500 focus:outline-none"
+                  autoFocus
+                  required
+                />
+
+                {inviteMutation.isError && (
+                  <p className="text-red-500 text-sm mb-4">
+                    {(inviteMutation.error as Error).message || 'Failed to invite'}
+                  </p>
+                )}
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowInviteModal(false);
+                      setInviteEmail('');
+                      inviteMutation.reset();
+                    }}
+                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-3 px-4 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={inviteMutation.isPending || !inviteEmail.trim()}
+                    className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
+                  >
+                    {inviteMutation.isPending ? 'Adding...' : 'Add Game Keeper'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
       <header className="bg-white shadow">
         <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4 flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-0">
           <h1 className="text-base sm:text-xl font-bold text-gray-800">
@@ -130,7 +223,7 @@ export function DashboardPage() {
             Create Game
           </button>
           <button
-            onClick={() => {/* TODO: Invite modal */}}
+            onClick={() => setShowInviteModal(true)}
             className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2.5 sm:py-3 px-4 sm:px-6 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
           >
             <FontAwesomeIcon icon={faUserPlus} />
