@@ -68,9 +68,7 @@ export function LandingPage() {
         </form>
 
         <div className="border-t border-gray-200 pt-6">
-          {isLoading ? (
-            <p className="text-center text-gray-500">Loading...</p>
-          ) : isAuthenticated ? (
+          {isAuthenticated ? (
             isGameKeeper ? (
               <div className="text-center">
                 <p className="text-gray-600 mb-3">Signed in as {user?.userDetails}</p>
@@ -108,9 +106,10 @@ export function LandingPage() {
           ) : (
             <button
               onClick={signIn}
-              className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-6 rounded-lg transition-colors"
+              disabled={isLoading}
+              className="w-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-700 font-medium py-3 px-6 rounded-lg transition-colors"
             >
-              Sign in to Create a Game
+              {isLoading ? 'Checking login status...' : 'Sign in to Create a Game'}
             </button>
           )}
         </div>
