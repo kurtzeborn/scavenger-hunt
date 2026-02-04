@@ -10,18 +10,8 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-// Check if user might be authenticated by looking for SWA auth cookie
-// This avoids calling /api/me (and triggering cold start) for anonymous users
-function maybeAuthenticated(): boolean {
-  // SWA sets 'StaticWebAppsAuthCookie' when user is authenticated
-  // The cookie is httpOnly so we can't read its value, but we can check presence
-  // Note: Cookie may exist but be expired, so this is just a hint
-  return document.cookie.includes('StaticWebAppsAuthCookie');
-}
-
 export function AuthProvider({ children }: AuthProviderProps) {
-  // Start with loading=true only if we might be authenticated
-  const [isLoading, setIsLoading] = useState(() => maybeAuthenticated());
+  const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isGameKeeper, setIsGameKeeper] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -43,12 +33,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   useEffect(() => {
-    // Only call /api/me if user might be authenticated (cookie exists)
-    // This avoids triggering a cold start for anonymous users
-    if (maybeAuthenticated()) {
-      fetchAuthStatus();
-    }
-    // If no cookie, we already have isLoading=false, isAuthenticated=false
+    fetchAuthStatus();
   }, []);
 
   const signIn = () => {
