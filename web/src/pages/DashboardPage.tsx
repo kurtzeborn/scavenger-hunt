@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faGamepad, faUserPlus, faArrowLeft } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faGamepad, faUserPlus, faArrowLeft, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../hooks/useAuth';
-import { useQuery } from '@tanstack/react-query';
-import { fetchGames } from '../api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { fetchGames, deleteGame } from '../api';
+import { ConfirmModal } from '../components/shared/ConfirmModal';
 import type { Game } from '../types';
 
 // Get display status for a game (considers expired timers)
@@ -43,12 +45,22 @@ function getDisplayStatus(game: Game): { label: string; color: string } {
 
 export function DashboardPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { isLoading: authLoading, isAuthenticated, isGameKeeper, user, signOut } = useAuth();
+  const [gameToDelete, setGameToDelete] = useState<Game | null>(null);
 
   const { data: games, isLoading: gamesLoading } = useQuery({
     queryKey: ['my-games'],
     queryFn: fetchGames,
     enabled: isGameKeeper,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteGame,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-games'] });
+      setGameToDelete(null);
+    },
   });
 
   if (authLoading) {
@@ -78,6 +90,18 @@ export function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!gameToDelete}
+        title="Delete Game?"
+        message={`Are you sure you want to delete game ${gameToDelete?.id}? This will permanently remove all teams, scores, and uploaded media. This action cannot be undone.`}
+        confirmText={deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={() => gameToDelete && deleteMutation.mutate(gameToDelete.id)}
+        onCancel={() => setGameToDelete(null)}
+      />
+
       <header className="bg-white shadow">
         <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4 flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-0">
           <h1 className="text-base sm:text-xl font-bold text-gray-800">
@@ -122,21 +146,38 @@ export function DashboardPage() {
             <div className="grid gap-4">
               {games.map((game) => {
                 const displayStatus = getDisplayStatus(game);
+                const isComplete = game.status === 'complete';
                 return (
                   <div
                     key={game.id}
-                    className="bg-white rounded-lg shadow p-4 flex justify-between items-center cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => navigate(`/game/${game.id}`)}
+                    className="bg-white rounded-lg shadow p-4 flex justify-between items-center hover:shadow-md transition-shadow"
                   >
-                    <div className="flex items-center gap-3">
+                    <div
+                      className="flex items-center gap-3 cursor-pointer flex-1"
+                      onClick={() => navigate(`/game/${game.id}`)}
+                    >
                       <span className="font-mono text-xl font-bold text-blue-600">{game.id}</span>
                       <span className={`text-xs font-medium px-2 py-1 rounded-full ${displayStatus.color}`}>
                         {displayStatus.label}
                       </span>
                     </div>
-                    <span className="text-sm text-gray-400">
-                      {new Date(game.createdAt).toLocaleDateString()}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm text-gray-400">
+                        {new Date(game.createdAt).toLocaleDateString()}
+                      </span>
+                      {isComplete && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setGameToDelete(game);
+                          }}
+                          className="text-gray-400 hover:text-red-500 p-2 transition-colors"
+                          title="Delete game"
+                        >
+                          <FontAwesomeIcon icon={faTrash} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}

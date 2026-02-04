@@ -1080,6 +1080,11 @@ Support for team members who participate but don't have their own device, plus a
 - [x] Unit tests: Added 10 tests for auth module (getAuthUser, isGameKeeper)
 - [x] Smoke tests: Added 5 health check tests for production deployment
 
+### Phase 5.1: Cleanup
+- [x] Blob lifecycle policy: Configure Azure Storage to auto-delete blobs after 7 days
+- [x] Timer function: `cleanupExpiredGames` runs daily to delete games/teams older than 7 days
+- [x] Delete button: Add "Delete Game" button on completed games in dashboard (deletes game, teams, and blobs)
+
 ### Phase 6: Future Enhancements
 - [ ] Pre-assigned teams mode (game keeper creates teams in advance)
 - [ ] SignalR for instant updates (if needed)

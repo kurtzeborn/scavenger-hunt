@@ -334,7 +334,7 @@ app.http('updateGame', {
   },
 });
 
-// DELETE /api/games/:id - Delete game (game keeper only)
+// DELETE /api/games/:id - Delete game and all associated data (game keeper only)
 app.http('deleteGame', {
   methods: ['DELETE'],
   authLevel: 'anonymous',
@@ -342,12 +342,16 @@ app.http('deleteGame', {
   handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
     try {
       const gameId = getGameIdParam(request);
-      await getOwnedGameEntity(request, gameId);
+      const { entity } = await getOwnedGameEntity(request, gameId);
 
-      // Delete the game
-      await gamesTable.deleteEntity('game', gameId);
+      // Only allow deleting completed games
+      if (entity.status !== 'complete') {
+        throw new InvalidGameStateError('Can only delete completed games');
+      }
 
-      // TODO: Also delete teams, media submissions, and blobs
+      // Delete game and all associated data (teams, submissions, blobs)
+      const { deleteGameAndData } = await import('./cleanup.js');
+      await deleteGameAndData(gameId, context);
 
       return { status: 204, body: undefined };
     } catch (error) {
