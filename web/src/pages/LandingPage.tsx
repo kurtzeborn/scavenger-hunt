@@ -32,15 +32,15 @@ export function LandingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-700 flex flex-col items-center justify-center p-4">
-      <div className="text-center mb-8">
-        <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">
-          <FontAwesomeIcon icon={faGamepad} className="mr-3" />
+      <div className="text-center mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-4xl md:text-5xl font-bold text-white mb-2">
+          <FontAwesomeIcon icon={faGamepad} className="mr-2 sm:mr-3" />
           Video Scavenger Hunt
         </h1>
-        <p className="text-blue-100 text-lg">Capture moments. Compete with friends.</p>
+        <p className="text-blue-100 text-sm sm:text-lg">Capture moments. Compete with friends.</p>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+      <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-8 w-full max-w-md">
         <form onSubmit={handleJoinGame} className="mb-6">
           <label htmlFor="gameCode" className="block text-gray-700 font-medium mb-2">
             Enter Game Code
@@ -51,7 +51,7 @@ export function LandingPage() {
             value={gameCode}
             onChange={handleCodeChange}
             placeholder="ABCD"
-            className="w-full text-center text-3xl font-mono tracking-widest border-2 border-gray-300 rounded-lg p-4 focus:border-blue-500 focus:outline-none uppercase"
+            className="w-full text-center text-2xl sm:text-3xl font-mono tracking-wider sm:tracking-widest border-2 border-gray-300 rounded-lg p-3 sm:p-4 focus:border-blue-500 focus:outline-none uppercase"
             maxLength={4}
             autoComplete="off"
             autoFocus

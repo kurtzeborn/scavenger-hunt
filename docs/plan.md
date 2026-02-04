@@ -1058,7 +1058,7 @@ Support for team members who participate but don't have their own device, plus a
 - [x] GitHub Actions CI/CD pipeline
 - [x] Media upload proxied through Function App
 
-**Scenario Management (Deferred to Phase 5):**
+**Scenario Management (Deferred to Phase 6):**
 - [ ] `POST /api/scenarios` - Create new scenario (game keeper only)
 - [ ] `PUT /api/scenarios/:id` - Update existing scenario
 - [ ] `DELETE /api/scenarios/:id` - Delete scenario (block if used in active games)
@@ -1066,13 +1066,21 @@ Support for team members who participate but don't have their own device, plus a
 - [ ] Add/Edit scenario modal with form validation
 - [ ] Delete confirmation with usage check
 
-**Polish (Deferred to Phase 5):**
-- [ ] PWA manifest and service worker
-- [ ] QR code generation for game codes
-- [ ] Responsive design polish
-- [ ] End-to-end testing
+**Polish (Phase 5):**
+- [x] PWA manifest and service worker (install-only, no offline caching)
+- [x] QR code generation for game codes (game keeper lobby)
+- [x] Responsive design polish for small screens (CAT S22 Flip at ~240px)
+- [x] Unit tests for Azure Functions (auth module)
+- [x] Smoke tests for deployment (tests/smoke.js)
 
-### Phase 5: Future Enhancements
+### Phase 5: Polish (Completed)
+- [x] PWA: Added manifest.json with 512x512 icon, theme colors, service worker for installability
+- [x] QR Code: Added QR button next to game code in lobby, opens modal with scannable code
+- [x] Responsive: Updated all screens for 240px minimum width (CAT S22 Flip support)
+- [x] Unit tests: Added 10 tests for auth module (getAuthUser, isGameKeeper)
+- [x] Smoke tests: Added 5 health check tests for production deployment
+
+### Phase 6: Future Enhancements
 - [ ] Pre-assigned teams mode (game keeper creates teams in advance)
 - [ ] SignalR for instant updates (if needed)
 - [ ] Per-game custom scenarios (one-off scenarios not saved to library)

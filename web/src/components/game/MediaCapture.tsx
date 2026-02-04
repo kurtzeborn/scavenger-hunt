@@ -372,16 +372,16 @@ export function MediaCapture({ game, scenario, onComplete, onCancel }: MediaCapt
       </div>
 
       {/* Controls */}
-      <div className="bg-black/80 p-4 safe-area-bottom">
+      <div className="bg-black/80 p-2 sm:p-4 safe-area-bottom">
         {(captureState === 'preview' || captureState === 'recording') && (
-          <div className="flex items-center justify-center gap-8">
+          <div className="flex items-center justify-center gap-4 sm:gap-8">
             {/* Flip Camera */}
             <button
               onClick={toggleCamera}
               disabled={captureState === 'recording'}
-              className="p-4 bg-white/10 hover:bg-white/20 disabled:opacity-50 rounded-full transition-colors"
+              className="p-3 sm:p-4 bg-white/10 hover:bg-white/20 disabled:opacity-50 rounded-full transition-colors"
             >
-              <FontAwesomeIcon icon={faRotate} className="text-white text-xl" />
+              <FontAwesomeIcon icon={faRotate} className="text-white text-lg sm:text-xl" />
             </button>
 
             {/* Capture/Record Button */}
@@ -389,39 +389,39 @@ export function MediaCapture({ game, scenario, onComplete, onCancel }: MediaCapt
               captureState === 'recording' ? (
                 <button
                   onClick={stopRecording}
-                  className="w-20 h-20 bg-red-600 hover:bg-red-700 rounded-full flex items-center justify-center transition-colors"
+                  className="w-16 h-16 sm:w-20 sm:h-20 bg-red-600 hover:bg-red-700 rounded-full flex items-center justify-center transition-colors"
                 >
-                  <FontAwesomeIcon icon={faStop} className="text-white text-3xl" />
+                  <FontAwesomeIcon icon={faStop} className="text-white text-2xl sm:text-3xl" />
                 </button>
               ) : (
                 <button
                   onClick={startRecording}
                   disabled={!stream}
-                  className="w-20 h-20 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 rounded-full flex items-center justify-center transition-colors"
+                  className="w-16 h-16 sm:w-20 sm:h-20 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 rounded-full flex items-center justify-center transition-colors"
                 >
-                  <FontAwesomeIcon icon={faVideo} className="text-white text-3xl" />
+                  <FontAwesomeIcon icon={faVideo} className="text-white text-2xl sm:text-3xl" />
                 </button>
               )
             ) : (
               <button
                 onClick={capturePhoto}
                 disabled={!stream}
-                className="w-20 h-20 bg-white hover:bg-gray-200 disabled:bg-gray-600 rounded-full flex items-center justify-center transition-colors"
+                className="w-16 h-16 sm:w-20 sm:h-20 bg-white hover:bg-gray-200 disabled:bg-gray-600 rounded-full flex items-center justify-center transition-colors"
               >
-                <FontAwesomeIcon icon={faCamera} className="text-gray-800 text-3xl" />
+                <FontAwesomeIcon icon={faCamera} className="text-gray-800 text-2xl sm:text-3xl" />
               </button>
             )}
 
             {/* Placeholder for alignment */}
-            <div className="w-14" />
+            <div className="w-10 sm:w-14" />
           </div>
         )}
 
         {captureState === 'recorded' && (
-          <div className="flex items-center justify-center gap-4">
+          <div className="flex items-center justify-center gap-2 sm:gap-4">
             <button
               onClick={retake}
-              className="flex-1 max-w-xs bg-gray-600 hover:bg-gray-700 text-white font-semibold py-4 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
+              className="flex-1 max-w-xs bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 sm:py-4 px-4 sm:px-6 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
             >
               <FontAwesomeIcon icon={faRotate} />
               Retake
@@ -429,7 +429,7 @@ export function MediaCapture({ game, scenario, onComplete, onCancel }: MediaCapt
             <button
               onClick={() => uploadMutation.mutate()}
               disabled={uploadMutation.isPending}
-              className="flex-1 max-w-xs bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-semibold py-4 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
+              className="flex-1 max-w-xs bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-semibold py-3 sm:py-4 px-4 sm:px-6 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
             >
               <FontAwesomeIcon icon={faUpload} />
               Use This

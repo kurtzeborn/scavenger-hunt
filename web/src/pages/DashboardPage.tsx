@@ -79,16 +79,16 @@ export function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-white shadow">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-gray-800">
+        <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4 flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-0">
+          <h1 className="text-base sm:text-xl font-bold text-gray-800">
             <FontAwesomeIcon icon={faGamepad} className="mr-2 text-blue-500" />
-            Game Keeper Dashboard
+            Dashboard
           </h1>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-500">{user?.userDetails}</span>
+          <div className="flex items-center gap-2 sm:gap-4">
+            <span className="text-xs sm:text-sm text-gray-500 truncate max-w-[120px] sm:max-w-none">{user?.userDetails}</span>
             <button
               onClick={signOut}
-              className="text-gray-500 hover:text-gray-700 text-sm"
+              className="text-gray-500 hover:text-gray-700 text-xs sm:text-sm whitespace-nowrap"
             >
               Sign Out
             </button>
@@ -97,17 +97,17 @@ export function DashboardPage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-6 sm:mb-8">
           <button
             onClick={() => navigate('/create')}
-            className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center gap-2"
+            className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2.5 sm:py-3 px-4 sm:px-6 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
           >
             <FontAwesomeIcon icon={faPlus} />
             Create Game
           </button>
           <button
             onClick={() => {/* TODO: Invite modal */}}
-            className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-3 px-6 rounded-lg transition-colors flex items-center gap-2"
+            className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2.5 sm:py-3 px-4 sm:px-6 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
           >
             <FontAwesomeIcon icon={faUserPlus} />
             Invite Game Keeper

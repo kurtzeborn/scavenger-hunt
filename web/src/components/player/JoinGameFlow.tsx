@@ -112,16 +112,16 @@ export function JoinGameFlow({ gameId, onJoined }: JoinGameFlowProps) {
   if (step === 'name') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
-          <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-gray-800 mb-2">Join Game</h1>
-            <p className="text-gray-500">
+        <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-8 w-full max-w-md">
+          <div className="text-center mb-4 sm:mb-6">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">Join Game</h1>
+            <p className="text-gray-500 text-sm sm:text-base">
               Game Code: <span className="font-mono font-bold text-blue-600">{gameId}</span>
             </p>
           </div>
 
           <form onSubmit={handleNameSubmit}>
-            <label htmlFor="displayName" className="block text-gray-700 font-medium mb-2">
+            <label htmlFor="displayName" className="block text-gray-700 font-medium mb-2 text-sm sm:text-base">
               What's your name?
             </label>
             <input
@@ -133,7 +133,7 @@ export function JoinGameFlow({ gameId, onJoined }: JoinGameFlowProps) {
                 setError('');
               }}
               placeholder="Enter your name"
-              className="w-full text-xl border-2 border-gray-300 rounded-lg p-4 focus:border-blue-500 focus:outline-none"
+              className="w-full text-lg sm:text-xl border-2 border-gray-300 rounded-lg p-3 sm:p-4 focus:border-blue-500 focus:outline-none"
               maxLength={20}
               autoComplete="off"
               autoFocus
@@ -154,9 +154,9 @@ export function JoinGameFlow({ gameId, onJoined }: JoinGameFlowProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
-        <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">
+      <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-8 w-full max-w-md">
+        <div className="text-center mb-4 sm:mb-6">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">
             Hey {displayName}! 👋
           </h1>
           {isLateJoin ? (

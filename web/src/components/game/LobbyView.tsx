@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUsers, faSpinner, faGamepad, faClock, faFlask, faUserPlus, faTimes } from '@fortawesome/free-solid-svg-icons';
+import { faUsers, faSpinner, faGamepad, faClock, faFlask, faUserPlus, faTimes, faQrcode } from '@fortawesome/free-solid-svg-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { QRCodeSVG } from 'qrcode.react';
 import { fetchTeams, seedTestTeams, addCrewMember } from '../../api';
 import { usePlayerSession } from '../../contexts/PlayerSessionContext';
 import type { Game, Team } from '../../types';
@@ -20,6 +21,10 @@ interface LobbyViewProps {
 export function LobbyView({ game, isGameKeeper, onStartGame, startingGame }: LobbyViewProps) {
   const { session } = usePlayerSession();
   const queryClient = useQueryClient();
+  const [showQRCode, setShowQRCode] = useState(false);
+
+  // Generate the join URL for QR code
+  const joinUrl = `https://vsh.k61.dev/game/${game.id}`;
 
   // Fetch teams with polling
   const { data: teams = [], isLoading: teamsLoading } = useQuery({
@@ -52,19 +57,63 @@ export function LobbyView({ game, isGameKeeper, onStartGame, startingGame }: Lob
 
   return (
     <div className="min-h-screen bg-gray-100">
+      {/* QR Code Modal */}
+      {showQRCode && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowQRCode(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl p-6 max-w-sm w-full text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-xl font-bold text-gray-800 mb-2">Scan to Join</h2>
+            <p className="text-gray-600 text-sm mb-4">
+              Game Code: <span className="font-mono font-bold">{game.id}</span>
+            </p>
+            <div className="bg-white p-4 rounded-lg inline-block">
+              <QRCodeSVG 
+                value={joinUrl} 
+                size={200}
+                level="M"
+                includeMargin={true}
+              />
+            </div>
+            <p className="text-gray-500 text-xs mt-4 break-all">{joinUrl}</p>
+            <button
+              onClick={() => setShowQRCode(false)}
+              className="mt-4 px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-700 font-medium transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-gradient-to-r from-blue-600 to-purple-700 text-white shadow-lg">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-blue-100 text-xs">Game Code</p>
-              <h1 className="text-2xl font-mono font-bold tracking-wider">{game.id}</h1>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div>
+                <p className="text-blue-100 text-[10px] sm:text-xs">Game Code</p>
+                <h1 className="text-lg sm:text-2xl font-mono font-bold tracking-wider">{game.id}</h1>
+              </div>
+              {isGameKeeper && (
+                <button
+                  onClick={() => setShowQRCode(true)}
+                  className="p-1.5 sm:p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
+                  title="Show QR Code"
+                >
+                  <FontAwesomeIcon icon={faQrcode} className="text-base sm:text-xl" />
+                </button>
+              )}
             </div>
             <div className="text-right">
-              <p className="text-blue-100 text-xs">Status</p>
-              <div className="flex items-center gap-2">
-                <span className="animate-pulse w-2.5 h-2.5 bg-yellow-400 rounded-full"></span>
-                <span className="font-semibold text-sm">Waiting for players...</span>
+              <p className="text-blue-100 text-[10px] sm:text-xs">Status</p>
+              <div className="flex items-center gap-1 sm:gap-2">
+                <span className="animate-pulse w-2 h-2 sm:w-2.5 sm:h-2.5 bg-yellow-400 rounded-full"></span>
+                <span className="font-semibold text-xs sm:text-sm">Waiting...</span>
               </div>
             </div>
           </div>
@@ -97,18 +146,18 @@ export function LobbyView({ game, isGameKeeper, onStartGame, startingGame }: Lob
             <FontAwesomeIcon icon={faGamepad} className="text-blue-500" />
             Game Settings
           </h3>
-          <div className="grid grid-cols-3 gap-3 text-center">
-            <div className="bg-gray-50 rounded-lg p-2">
-              <p className="text-xl font-bold text-gray-800">{game.config.scenarioCount}</p>
-              <p className="text-gray-500 text-xs">Scenarios</p>
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 text-center">
+            <div className="bg-gray-50 rounded-lg p-1.5 sm:p-2">
+              <p className="text-lg sm:text-xl font-bold text-gray-800">{game.config.scenarioCount}</p>
+              <p className="text-gray-500 text-[10px] sm:text-xs">Scenarios</p>
             </div>
-            <div className="bg-gray-50 rounded-lg p-2">
-              <p className="text-xl font-bold text-gray-800">{game.config.timeLimit}</p>
-              <p className="text-gray-500 text-xs">Minutes</p>
+            <div className="bg-gray-50 rounded-lg p-1.5 sm:p-2">
+              <p className="text-lg sm:text-xl font-bold text-gray-800">{game.config.timeLimit}</p>
+              <p className="text-gray-500 text-[10px] sm:text-xs">Minutes</p>
             </div>
-            <div className="bg-gray-50 rounded-lg p-2">
-              <p className="text-xl font-bold text-gray-800">{game.config.timeLimitPerScenario}</p>
-              <p className="text-gray-500 text-xs">Min/Scenario</p>
+            <div className="bg-gray-50 rounded-lg p-1.5 sm:p-2">
+              <p className="text-lg sm:text-xl font-bold text-gray-800">{game.config.timeLimitPerScenario}</p>
+              <p className="text-gray-500 text-[10px] sm:text-xs">Min/Scen</p>
             </div>
           </div>
         </div>

@@ -202,87 +202,87 @@ export function ScenarioListView({ game, isGameKeeper }: ScenarioListViewProps) 
 
       {/* Header with Timer */}
       <header className="bg-gradient-to-r from-blue-600 to-purple-700 text-white shadow-lg sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-4">
+        <div className="max-w-4xl mx-auto px-2 sm:px-4 py-2 sm:py-4">
           <div className="flex items-center justify-between">
             {/* Left: Player info or Game Keeper home button + game code */}
             {isGameKeeper ? (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1 sm:gap-3">
                 <button
                   onClick={() => navigate('/dashboard')}
-                  className="text-white/80 hover:text-white transition-colors p-2"
+                  className="text-white/80 hover:text-white transition-colors p-1 sm:p-2"
                   title="Back to Dashboard"
                 >
-                  <FontAwesomeIcon icon={faHome} className="text-xl" />
+                  <FontAwesomeIcon icon={faHome} className="text-base sm:text-xl" />
                 </button>
-                <div className="bg-white/20 px-3 py-1 rounded-lg">
-                  <span className="font-mono font-bold text-lg tracking-wider">{game.id}</span>
+                <div className="bg-white/20 px-2 sm:px-3 py-0.5 sm:py-1 rounded-lg">
+                  <span className="font-mono font-bold text-sm sm:text-lg tracking-wider">{game.id}</span>
                 </div>
               </div>
             ) : (
-              <div>
-                <p className="text-blue-100 text-sm">{myTeam?.name}</p>
-                <p className="font-semibold">{session?.displayName}</p>
+              <div className="min-w-0">
+                <p className="text-blue-100 text-xs sm:text-sm truncate">{myTeam?.name}</p>
+                <p className="font-semibold text-sm sm:text-base truncate">{session?.displayName}</p>
               </div>
             )}
             
             {/* Center: Timer */}
-            <div className="text-center">
-              <div className={`flex items-center gap-2 text-2xl font-mono font-bold ${getTimerColor()}`}>
-                <FontAwesomeIcon icon={isPaused ? faPause : faClock} />
+            <div className="text-center flex-shrink-0">
+              <div className={`flex items-center gap-1 sm:gap-2 text-lg sm:text-2xl font-mono font-bold ${getTimerColor()}`}>
+                <FontAwesomeIcon icon={isPaused ? faPause : faClock} className="text-sm sm:text-base" />
                 {minutesRemaining.toString().padStart(2, '0')}:
                 {secondsRemaining.toString().padStart(2, '0')}
               </div>
-              <p className="text-blue-100 text-xs">
-                {isPaused ? 'Paused' : 'Time Remaining'}
+              <p className="text-blue-100 text-[10px] sm:text-xs">
+                {isPaused ? 'Paused' : 'Time Left'}
               </p>
             </div>
 
             {/* Right: Score (only for players) or controls (for gamekeeper) */}
             {!isGameKeeper ? (
               <div className="text-right">
-                <div className="flex items-center gap-2">
-                  <FontAwesomeIcon icon={faTrophy} className="text-yellow-300" />
-                  <span className="text-2xl font-bold">{myScore}/{totalScenarios}</span>
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <FontAwesomeIcon icon={faTrophy} className="text-yellow-300 text-sm sm:text-base" />
+                  <span className="text-lg sm:text-2xl font-bold">{myScore}/{totalScenarios}</span>
                 </div>
-                <p className="text-blue-100 text-xs">Completed</p>
+                <p className="text-blue-100 text-[10px] sm:text-xs">Done</p>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 sm:gap-2">
                 {/* Controls */}
                 {isPaused ? (
                   <button
                     onClick={() => resumeMutation.mutate()}
                     disabled={resumeMutation.isPending}
-                    className="bg-green-500 hover:bg-green-600 disabled:bg-green-400 text-white font-medium py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1.5 text-sm"
+                    className="bg-green-500 hover:bg-green-600 disabled:bg-green-400 text-white font-medium py-1 sm:py-1.5 px-2 sm:px-3 rounded-lg transition-colors flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm"
                   >
                     <FontAwesomeIcon icon={faPlay} />
-                    Resume
+                    <span className="hidden sm:inline">Resume</span>
                   </button>
                 ) : (
                   <button
                     onClick={() => pauseMutation.mutate()}
                     disabled={pauseMutation.isPending}
-                    className="bg-amber-500 hover:bg-amber-600 disabled:bg-amber-400 text-white font-medium py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1.5 text-sm"
+                    className="bg-amber-500 hover:bg-amber-600 disabled:bg-amber-400 text-white font-medium py-1 sm:py-1.5 px-2 sm:px-3 rounded-lg transition-colors flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm"
                   >
                     <FontAwesomeIcon icon={faPause} />
-                    Pause
+                    <span className="hidden sm:inline">Pause</span>
                   </button>
                 )}
                 <button
                   onClick={() => setShowEndGameConfirm(true)}
                   disabled={endMutation.isPending}
-                  className="bg-red-500 hover:bg-red-600 disabled:bg-red-400 text-white font-medium py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1.5 text-sm"
+                  className="bg-red-500 hover:bg-red-600 disabled:bg-red-400 text-white font-medium py-1 sm:py-1.5 px-2 sm:px-3 rounded-lg transition-colors flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm"
                 >
                   <FontAwesomeIcon icon={faStop} />
-                  End
+                  <span className="hidden sm:inline">End</span>
                 </button>
                 {/* Uploads counter */}
                 <div className="text-right ml-1">
-                  <span className="text-lg font-bold">
+                  <span className="text-sm sm:text-lg font-bold">
                     {teams.reduce((sum, t) => sum + t.completedScenarios.length, 0)}/
                     {teams.length * totalScenarios}
                   </span>
-                  <p className="text-blue-100 text-xs">Uploads</p>
+                  <p className="text-blue-100 text-[10px] sm:text-xs">Uploads</p>
                 </div>
               </div>
             )}
