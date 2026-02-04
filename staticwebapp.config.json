@@ -33,14 +33,5 @@
         }
       }
     }
-  },
-  "forwardingGateway": {
-    "requiredHeaders": {
-      "X-Forwarded-Host": "vsh.k61.dev"
-    },
-    "allowedForwardedHosts": [
-      "vsh.k61.dev",
-      "ambitious-tree-0dbf08e10.5.azurestaticapps.net"
-    ]
   }
 }
