@@ -24,6 +24,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            web/package-lock.json
+            functions/package-lock.json
 
       - name: Install and lint web
         working-directory: web
@@ -38,7 +42,15 @@ jobs:
           npm run build
           npm run test:run
 
-  # Deploy infrastructure with Bicep
+      # Upload built functions as artifact to avoid rebuilding
+      - name: Upload functions build
+        uses: actions/upload-artifact@v4
+        with:
+          name: functions-dist
+          path: functions/
+          retention-days: 1
+
+  # Deploy infrastructure with Bicep (runs in parallel, rarely changes)
   deploy-infra:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -105,20 +117,13 @@ jobs:
   deploy-functions:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    needs: [validate, deploy-infra]
+    needs: [validate]
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Download functions build
+        uses: actions/download-artifact@v4
         with:
-          node-version: '20'
-
-      - name: Install and build functions
-        working-directory: functions
-        run: |
-          npm ci
-          npm run build
+          name: functions-dist
+          path: functions
 
       - name: Azure Login
         uses: azure/login@v2
@@ -135,7 +140,7 @@ jobs:
   deploy-web:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    needs: [validate, deploy-infra]
+    needs: [validate]
     steps:
       - uses: actions/checkout@v4
 
@@ -178,7 +183,7 @@ jobs:
           node-version: '20'
 
       - name: Wait for deployment to propagate
-        run: sleep 30
+        run: sleep 15
 
       - name: Run smoke tests
         run: node tests/smoke.js https://vsh.k61.dev
