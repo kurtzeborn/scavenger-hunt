@@ -58,6 +58,20 @@ app.http('seedScenarios', {
         }
       }
 
+      // Delete all existing scenarios first to remove stale entries
+      let deleted = 0;
+      const existingEntities = scenariosTable.listEntities<ScenarioEntity>();
+      for await (const entity of existingEntities) {
+        try {
+          await scenariosTable.deleteEntity(entity.partitionKey, entity.rowKey);
+          deleted++;
+        } catch (error: any) {
+          context.warn(`Failed to delete ${entity.partitionKey}/${entity.rowKey}:`, error);
+        }
+      }
+      context.log(`Deleted ${deleted} existing scenarios`);
+
+      // Upsert all seed scenarios
       let seeded = 0;
 
       for (const scenario of SEED_SCENARIOS) {
@@ -70,21 +84,14 @@ app.http('seedScenarios', {
           difficulty: scenario.difficulty,
         };
 
-        try {
-          await scenariosTable.createEntity(entity);
-          seeded++;
-        } catch (error: any) {
-          // Entity already exists (409) is fine
-          if (error.statusCode !== 409) {
-            throw error;
-          }
-        }
+        await scenariosTable.upsertEntity(entity, 'Replace');
+        seeded++;
       }
 
       return {
         status: 200,
         jsonBody: { 
-          message: `Seeded ${seeded} new scenarios`,
+          message: `Replaced scenarios: deleted ${deleted} old, seeded ${seeded} new`,
           total: SEED_SCENARIOS.length,
         },
       };
