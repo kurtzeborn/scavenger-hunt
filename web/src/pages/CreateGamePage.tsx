@@ -6,9 +6,9 @@ import {
   faCheck,
   faCamera,
   faVideo,
-  faGaugeSimpleHigh,
-  faGaugeSimple,
-  faGaugeSimpleLow,
+  faFireFlameCurved,
+  faFire,
+  faFireFlameSimple,
 } from '@fortawesome/free-solid-svg-icons';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { fetchScenarios, createGame } from '../api';
@@ -177,13 +177,13 @@ export function CreateGamePage() {
                         {scenario.category}
                       </span>
                       <FontAwesomeIcon
-                        icon={scenario.difficulty === 'hard' ? faGaugeSimpleHigh : scenario.difficulty === 'medium' ? faGaugeSimple : faGaugeSimpleLow}
+                        icon={scenario.difficulty === 'hard' ? faFireFlameCurved : scenario.difficulty === 'medium' ? faFire : faFireFlameSimple}
                         className={`flex-shrink-0 text-sm ${
                           scenario.difficulty === 'hard'
                             ? 'text-red-500'
                             : scenario.difficulty === 'medium'
-                            ? 'text-yellow-500'
-                            : 'text-green-500'
+                            ? 'text-orange-500'
+                            : 'text-yellow-400'
                         }`}
                         title={scenario.difficulty}
                       />
