@@ -5,13 +5,12 @@ import {
   faVideo,
   faRotate,
   faCheck,
-  faSpinner,
   faArrowLeft,
   faStop,
   faUpload,
 } from '@fortawesome/free-solid-svg-icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { uploadMedia } from '../../api';
+import { uploadMedia, fetchMediaSubmissions } from '../../api';
 import { usePlayerSession } from '../../contexts/PlayerSessionContext';
 import type { Game, Scenario } from '../../types';
 
@@ -25,6 +24,7 @@ interface MediaCaptureProps {
 type CaptureState = 'preview' | 'recording' | 'recorded' | 'uploading' | 'done';
 
 const MAX_VIDEO_DURATION = 30; // seconds
+const UPLOAD_TIMEOUT_MS = 10000; // 10 seconds
 
 export function MediaCapture({ game, scenario, onComplete, onCancel }: MediaCaptureProps) {
   const { session } = usePlayerSession();
@@ -38,6 +38,7 @@ export function MediaCapture({ game, scenario, onComplete, onCancel }: MediaCapt
   const [error, setError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const [cameraRestartKey, setCameraRestartKey] = useState(0); // Used to force camera restart
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const playbackVideoRef = useRef<HTMLVideoElement>(null);
@@ -45,6 +46,8 @@ export function MediaCapture({ game, scenario, onComplete, onCancel }: MediaCapt
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const uploadCompleteRef = useRef(false);
+  const animationFrameRef = useRef<number | null>(null);
 
   const isVideo = scenario.mediaType === 'video';
 
@@ -218,7 +221,7 @@ export function MediaCapture({ game, scenario, onComplete, onCancel }: MediaCapt
     setCameraRestartKey(prev => prev + 1);
   }, [mediaUrl]);
 
-  // Upload mutation
+  // Upload mutation with progress bar and timeout auto-recovery
   const uploadMutation = useMutation({
     mutationFn: async () => {
       if (!mediaBlob) {
@@ -234,17 +237,66 @@ export function MediaCapture({ game, scenario, onComplete, onCancel }: MediaCapt
       }
 
       setCaptureState('uploading');
+      setUploadProgress(0);
+      uploadCompleteRef.current = false;
 
-      // Upload directly to Function App (which saves to blob storage)
-      await uploadMedia(game.id, {
+      // Start progress bar animation
+      const startTime = Date.now();
+      const updateProgress = () => {
+        if (uploadCompleteRef.current) return;
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(99, (elapsed / UPLOAD_TIMEOUT_MS) * 100);
+        setUploadProgress(progress);
+        if (progress < 99) {
+          animationFrameRef.current = requestAnimationFrame(updateProgress);
+        }
+      };
+      animationFrameRef.current = requestAnimationFrame(updateProgress);
+
+      // Set up abort controller with timeout
+      const abortController = new AbortController();
+      const timeoutId = setTimeout(() => abortController.abort(), UPLOAD_TIMEOUT_MS);
+
+      const uploadData = {
         teamId: session.teamId,
         scenarioId: scenario.id,
         mediaType: scenario.mediaType,
         playerId: session.playerId,
         durationSeconds: isVideo ? recordingTime : undefined,
-      }, mediaBlob);
+      };
 
-      return true;
+      try {
+        await uploadMedia(game.id, uploadData, mediaBlob, abortController.signal);
+        clearTimeout(timeoutId);
+        // Upload succeeded - jump to 100%
+        uploadCompleteRef.current = true;
+        if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+        setUploadProgress(100);
+        return true;
+      } catch (err: unknown) {
+        clearTimeout(timeoutId);
+        uploadCompleteRef.current = true;
+        if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+
+        if (err instanceof Error && err.name === 'AbortError') {
+          // Timeout - check if upload actually succeeded server-side
+          try {
+            const submissions = await fetchMediaSubmissions(game.id, {
+              teamId: session.teamId,
+              scenarioId: scenario.id,
+            });
+            if (submissions.length > 0) {
+              // Upload succeeded despite timeout
+              setUploadProgress(100);
+              return true;
+            }
+          } catch {
+            // Server check failed too
+          }
+          throw new Error('Upload timed out. Please try again.');
+        }
+        throw err;
+      }
     },
     onSuccess: () => {
       setCaptureState('done');
@@ -257,14 +309,18 @@ export function MediaCapture({ game, scenario, onComplete, onCancel }: MediaCapt
     onError: (err: Error) => {
       setError(err.message || 'Failed to upload. Please try again.');
       setCaptureState('recorded');
+      setUploadProgress(0);
     },
   });
 
-  // Cleanup media URL on unmount
+  // Cleanup media URL and animation frame on unmount
   useEffect(() => {
     return () => {
       if (mediaUrl) {
         URL.revokeObjectURL(mediaUrl);
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
       }
     };
   }, [mediaUrl]);
@@ -353,9 +409,15 @@ export function MediaCapture({ game, scenario, onComplete, onCancel }: MediaCapt
         {/* Upload Progress */}
         {captureState === 'uploading' && (
           <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
-            <div className="text-center text-white">
-              <FontAwesomeIcon icon={faSpinner} className="text-4xl animate-spin mb-4" />
-              <p className="text-lg">Uploading...</p>
+            <div className="text-center text-white w-64">
+              <p className="text-lg mb-4">Uploading...</p>
+              <div className="w-full bg-gray-700 rounded-full h-3 mb-2">
+                <div
+                  className="bg-blue-500 h-3 rounded-full transition-all duration-150"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+              <p className="text-sm text-gray-400">{Math.round(uploadProgress)}%</p>
             </div>
           </div>
         )}
@@ -432,7 +494,7 @@ export function MediaCapture({ game, scenario, onComplete, onCancel }: MediaCapt
               className="flex-1 max-w-xs bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-semibold py-3 sm:py-4 px-4 sm:px-6 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
             >
               <FontAwesomeIcon icon={faUpload} />
-              Use This
+              {error ? 'Retry' : 'Use This'}
             </button>
           </div>
         )}

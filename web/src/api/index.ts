@@ -234,7 +234,8 @@ export interface UploadMediaResponse {
 export async function uploadMedia(
   gameId: string, 
   data: UploadMediaRequest, 
-  file: Blob
+  file: Blob,
+  signal?: AbortSignal
 ): Promise<UploadMediaResponse> {
   // Build query params for metadata
   const params = new URLSearchParams({
@@ -255,6 +256,7 @@ export async function uploadMedia(
       ...authHeaders,
     },
     body: file,
+    signal,
   });
 
   if (!response.ok) {
