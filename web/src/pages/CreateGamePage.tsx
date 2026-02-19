@@ -1,7 +1,15 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowLeft, faCheck, faCamera, faVideo } from '@fortawesome/free-solid-svg-icons';
+import {
+  faArrowLeft,
+  faCheck,
+  faCamera,
+  faVideo,
+  faGaugeHigh,
+  faGauge,
+  faGaugeSimple,
+} from '@fortawesome/free-solid-svg-icons';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { fetchScenarios, createGame } from '../api';
 
@@ -162,12 +170,23 @@ export function CreateGamePage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                           <span className="font-medium text-gray-800">{scenario.title}</span>
-                          <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded">
-                            {scenario.category}
-                          </span>
                           <span className="text-sm text-gray-500">{scenario.description}</span>
                         </div>
                       </div>
+                      <FontAwesomeIcon
+                        icon={scenario.difficulty === 'hard' ? faGaugeHigh : scenario.difficulty === 'medium' ? faGauge : faGaugeSimple}
+                        className={`flex-shrink-0 text-sm ${
+                          scenario.difficulty === 'hard'
+                            ? 'text-red-500'
+                            : scenario.difficulty === 'medium'
+                            ? 'text-yellow-500'
+                            : 'text-green-500'
+                        }`}
+                        title={scenario.difficulty}
+                      />
+                      <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded flex-shrink-0">
+                        {scenario.category}
+                      </span>
                       {isSelected && (
                         <FontAwesomeIcon icon={faCheck} className="text-blue-500 flex-shrink-0" />
                       )}
