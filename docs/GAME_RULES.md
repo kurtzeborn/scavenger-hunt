@@ -203,7 +203,7 @@ If camera access is denied:
 | Action | Points |
 |--------|--------|
 | Complete a scenario | **1 point** |
-| Receive bonus for a scenario | **1 bonus point** |
+| Gamekeeper favorite | **1 bonus point** |
 | Win crowd favorite vote | **1 bonus point** |
 
 ### Bonus Points
