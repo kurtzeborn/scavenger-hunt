@@ -13,7 +13,7 @@ This document explains how Video Scavenger Hunt works, from setup to final scori
 5. ⭐ 1 point bonuses possible for gamekeeper and crowd favorite
 6. ❤️ Team captains vote for crowd favorite during judging
 7. 🥇 Highest total score wins; crowd favorites then bonus count break ties
-8. 👥 Teams of 2-6 people (players + crew)
+8. 👥 Teams of 1-6 people (players + crew)
 9. 📱 Late players can join teams already in progress
 10. ⏸️ Game Keeper can pause at any time
 11. 🗑️ All media deleted after 7 days
@@ -37,7 +37,7 @@ This document explains how Video Scavenger Hunt works, from setup to final scori
 |---------|---------|---------|
 | Scenarios | - | 5-25 (individually selected) |
 | Time Limit | 60 minutes | Configurable (typically 6 min per scenario) |
-| Team Size | 2-6 members | Includes both players and crew |
+| Team Size | 1-6 members | Includes both players and crew |
 | Teams per Game | 2-20 | Minimum 2 teams to start |
 | Video Length | 30 seconds max | Enforced by app |
 
