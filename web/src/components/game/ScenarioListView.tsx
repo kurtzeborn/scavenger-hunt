@@ -143,7 +143,7 @@ export function ScenarioListView({ game, isGameKeeper }: ScenarioListViewProps) 
 
   // Calculate score
   const myScore = completedScenarios.length;
-  const totalScenarios = game.config.scenarioCount;
+  const totalScenarios = game.scenarios.length;
 
   // If a scenario is selected, show the capture view
   if (selectedScenario) {

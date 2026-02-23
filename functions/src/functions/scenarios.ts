@@ -41,6 +41,8 @@ app.http('getScenarios', {
 });
 
 // POST /api/scenarios/seed - Seed the scenario library (dev only)
+// POST /api/scenarios/seed - Re-seed scenario library
+// NOTE: This only affects the scenarios table. The gamekeepers table is never touched by seed operations.
 app.http('seedScenarios', {
   methods: ['POST'],
   authLevel: 'anonymous',

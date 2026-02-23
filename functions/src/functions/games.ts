@@ -2,7 +2,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/fu
 import { v4 as uuidv4 } from 'uuid';
 import { gamesTable } from '../storage.js';
 import { requireGameKeeper, AuthError, getAuthUser, isGameKeeper, AuthUser } from '../auth.js';
-import { Game, GameEntity, GameConfig, ScenarioRef, GAME_CODE_CHARS } from '../types.js';
+import { Game, GameEntity, GameConfig, ScenarioRef, GAME_CODE_CHARS, MIN_SCENARIOS, MAX_SCENARIOS } from '../types.js';
 
 // ============ Helper Functions ============
 
@@ -187,10 +187,10 @@ app.http('createGame', {
         };
       }
 
-      if (body.scenarioIds.length !== body.config.scenarioCount) {
+      if (body.scenarioIds.length < MIN_SCENARIOS || body.scenarioIds.length > MAX_SCENARIOS) {
         return {
           status: 400,
-          jsonBody: { error: `Expected ${body.config.scenarioCount} scenarios, got ${body.scenarioIds.length}` },
+          jsonBody: { error: `Scenario count must be between ${MIN_SCENARIOS} and ${MAX_SCENARIOS}, got ${body.scenarioIds.length}` },
         };
       }
 

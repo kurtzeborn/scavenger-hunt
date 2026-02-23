@@ -148,16 +148,16 @@ export function LobbyView({ game, isGameKeeper, onStartGame, startingGame }: Lob
           </h3>
           <div className="grid grid-cols-3 gap-2 sm:gap-3 text-center">
             <div className="bg-gray-50 rounded-lg p-1.5 sm:p-2">
-              <p className="text-lg sm:text-xl font-bold text-gray-800">{game.config.scenarioCount}</p>
-              <p className="text-gray-500 text-[10px] sm:text-xs">Scenarios</p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-1.5 sm:p-2">
               <p className="text-lg sm:text-xl font-bold text-gray-800">{game.config.timeLimit}</p>
               <p className="text-gray-500 text-[10px] sm:text-xs">Minutes</p>
             </div>
             <div className="bg-gray-50 rounded-lg p-1.5 sm:p-2">
-              <p className="text-lg sm:text-xl font-bold text-gray-800">{game.config.timeLimitPerScenario}</p>
-              <p className="text-gray-500 text-[10px] sm:text-xs">Min/Scen</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-800">{game.scenarios.length}</p>
+              <p className="text-gray-500 text-[10px] sm:text-xs">Scenarios</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-1.5 sm:p-2">
+              <p className="text-lg sm:text-xl font-bold text-gray-800">{Math.round(game.config.timeLimit / game.scenarios.length)}</p>
+              <p className="text-gray-500 text-[10px] sm:text-xs">Min/Scenario</p>
             </div>
           </div>
         </div>

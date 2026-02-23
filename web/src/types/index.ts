@@ -13,11 +13,13 @@ export type ScenarioCategory = 'location' | 'general' | 'church' | string;
 // Upload status
 export type UploadStatus = 'uploading' | 'complete' | 'failed';
 
+// Scenario count limits
+export const MIN_SCENARIOS = 5;
+export const MAX_SCENARIOS = 25;
+
 // Game configuration
 export interface GameConfig {
-  scenarioCount: number; // 5-20
   timeLimit: number; // Total minutes
-  timeLimitPerScenario: number;
 }
 
 // Reference to a scenario within a game
@@ -143,4 +145,5 @@ export const TEAM_COLORS = [
 ] as const;
 
 // Game code character set (excluding O and I for clarity)
-export const GAME_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+// Only used server-side, but kept here for reference
+// export const GAME_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';

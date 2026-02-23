@@ -13,11 +13,13 @@ export type ScenarioCategory = 'location' | 'general' | 'church' | string;
 // Upload status
 export type UploadStatus = 'uploading' | 'complete' | 'failed';
 
+// Scenario count limits
+export const MIN_SCENARIOS = 5;
+export const MAX_SCENARIOS = 25;
+
 // Game configuration
 export interface GameConfig {
-  scenarioCount: number; // 5-20
   timeLimit: number; // Total minutes
-  timeLimitPerScenario: number;
 }
 
 // Reference to a scenario within a game

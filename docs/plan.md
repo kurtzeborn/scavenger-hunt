@@ -25,7 +25,7 @@ A multiplayer video scavenger hunt game where teams compete to act out scenarios
 |------------|-------|
 | Team Size | 2-6 members (players + crew combined) |
 | Teams per Game | 2-20 teams |
-| Scenarios per Game | 10 (default), 15, or 20 |
+| Scenarios per Game | 5-25 (free pick from library) |
 | Time Limit | 6 min/scenario default (60 min for 10), configurable |
 | Video Duration | 30 seconds max |
 | Scoring | 1 point per completion + 1 bonus point available per scenario |
@@ -218,9 +218,7 @@ interface Game {
   createdAt: Date;
   status: 'lobby' | 'active' | 'paused' | 'judging' | 'complete';
   config: {
-    scenarioCount: 10 | 15 | 20;
     timeLimit: number;           // Total minutes (can be adjusted mid-game)
-    timeLimitPerScenario: number;
   };
   scenarios: ScenarioRef[];      // Selected scenarios for this game
   startedAt?: Date;
@@ -459,7 +457,7 @@ All users arrive at the same landing page. The UI adapts based on authentication
 1. Sign in with Microsoft (via landing page)
 2. Create New Game
    - Select scenario categories to include (location, general, church, etc.)
-   - Select scenario count (10/15/20)
+   - Select scenarios from the library (5-25)
    - Set time limit
    - Get shareable game code / QR code
 3. Wait in Lobby
