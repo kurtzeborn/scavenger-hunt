@@ -379,7 +379,7 @@ DELETE /api/scenarios/:id            Delete scenario (blocked if used in active 
 
 ### Game Keeper Management (Game Keeper Only)
 ```
-GET    /api/gamekeepers              List all game keepers
+GET    /api/gamekeepers              List all game keepers (includes active/completed game counts)
 POST   /api/gamekeepers              Invite new game keeper (by email)
 DELETE /api/gamekeepers/:email       Remove game keeper
 GET    /api/me                       Get current user's auth status and game keeper status
@@ -425,7 +425,7 @@ All users arrive at the same landing page. The UI adapts based on authentication
 | State | What User Sees |
 |-------|----------------|
 | **Not signed in** | Game code input + "Sign in to Create a Game" link |
-| **Signed in + authorized** | Game keeper dashboard with "Create Game" + "Invite Game Keeper" |
+| **Signed in + authorized** | Game keeper dashboard with "Create Game" + "Game Keepers" dropdown |
 | **Signed in + NOT authorized** | Error message with their email, prompt to request invite |
 
 **Sign-in flow:**
@@ -1082,6 +1082,15 @@ Support for team members who participate but don't have their own device, plus a
 - [x] Blob lifecycle policy: Configure Azure Storage to auto-delete blobs after 7 days
 - [x] Timer function: `cleanupExpiredGames` runs daily to delete games/teams older than 7 days
 - [x] Delete button: Add "Delete Game" button on completed games in dashboard (deletes game, teams, and blobs)
+
+### Phase 5.2: Game Keepers List
+- [x] Dashboard: Replace "Invite Game Keeper" button with "Game Keepers" dropdown (Add Game Keeper + View List)
+- [x] New `/gamekeepers` route with dedicated page listing all game keepers
+- [x] Each keeper card shows: display name, email, added by, added date, active game count, completed game count
+- [x] `GET /api/gamekeepers` updated to return `addedBy`, `activeGames`, and `completedGames` per keeper
+- [x] Cache invalidation: adding a keeper refreshes the list page data
+- [x] Keepers sorted alphabetically by display name
+- [x] Escape key closes dropdown menu
 
 ### Phase 6: Future Enhancements
 - [ ] Pre-assigned teams mode (game keeper creates teams in advance)

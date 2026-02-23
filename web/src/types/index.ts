@@ -109,14 +109,6 @@ export interface MediaSubmission {
   errorMessage?: string;
 }
 
-// Game keeper allowlist entry
-export interface GameKeeper {
-  email: string; // Primary key (lowercase)
-  displayName: string;
-  addedBy: string; // Email of who invited them
-  addedAt: Date;
-}
-
 // Auth user info from SWA
 export interface AuthUser {
   userId: string;

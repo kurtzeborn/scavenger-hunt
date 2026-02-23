@@ -1,9 +1,9 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { gamekeepersTable } from '../storage.js';
+import { gamekeepersTable, gamesTable } from '../storage.js';
 import { requireGameKeeper, AuthError } from '../auth.js';
-import { GameKeeperEntity } from '../types.js';
+import { GameKeeperEntity, GameEntity } from '../types.js';
 
-// GET /api/gamekeepers - List all game keepers
+// GET /api/gamekeepers - List all game keepers with game counts
 app.http('listGameKeepers', {
   methods: ['GET'],
   authLevel: 'anonymous',
@@ -12,16 +12,45 @@ app.http('listGameKeepers', {
     try {
       await requireGameKeeper(request);
       
-      const keepers: Array<{ email: string; displayName: string; addedAt: Date }> = [];
+      // Build a map of game counts per keeper email
+      const activeCountMap = new Map<string, number>();
+      const completedCountMap = new Map<string, number>();
+      const allGames = gamesTable.listEntities<GameEntity>({
+        queryOptions: { filter: `PartitionKey eq 'game'` },
+      });
+      for await (const game of allGames) {
+        if (!game.createdBy) continue;
+        const email = game.createdBy.toLowerCase();
+        if (game.status === 'complete') {
+          completedCountMap.set(email, (completedCountMap.get(email) || 0) + 1);
+        } else {
+          activeCountMap.set(email, (activeCountMap.get(email) || 0) + 1);
+        }
+      }
+
+      const keepers: Array<{
+        email: string;
+        displayName: string;
+        addedBy: string;
+        addedAt: Date;
+        activeGames: number;
+        completedGames: number;
+      }> = [];
       const entities = gamekeepersTable.listEntities<GameKeeperEntity>();
 
       for await (const entity of entities) {
+        const email = entity.rowKey.toLowerCase();
         keepers.push({
           email: entity.rowKey,
           displayName: entity.displayName,
+          addedBy: entity.addedBy,
           addedAt: entity.addedAt,
+          activeGames: activeCountMap.get(email) || 0,
+          completedGames: completedCountMap.get(email) || 0,
         });
       }
+
+      keepers.sort((a, b) => a.displayName.localeCompare(b.displayName));
 
       return {
         status: 200,

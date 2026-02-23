@@ -293,12 +293,19 @@ export async function fetchScenarios(): Promise<Scenario[]> {
 export interface GameKeeper {
   email: string;
   displayName: string;
-  addedAt: Date;
+  addedBy: string;
+  addedAt: string;
+  activeGames: number;
+  completedGames: number;
 }
 
 export interface InviteGameKeeperRequest {
   email: string;
   displayName?: string;
+}
+
+export async function fetchGameKeepers(): Promise<GameKeeper[]> {
+  return apiFetch<GameKeeper[]>('/gamekeepers');
 }
 
 export async function inviteGameKeeper(data: InviteGameKeeperRequest): Promise<GameKeeper> {

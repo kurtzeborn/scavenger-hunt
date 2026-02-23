@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faGamepad, faUserPlus, faArrowLeft, faTrash, faTimes, faCheck } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faGamepad, faUsers, faUserPlus, faList, faArrowLeft, faTrash, faTimes, faCheck } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../hooks/useAuth';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchGames, deleteGame, inviteGameKeeper } from '../api';
@@ -48,9 +48,31 @@ export function DashboardPage() {
   const queryClient = useQueryClient();
   const { isLoading: authLoading, isAuthenticated, isGameKeeper, user, signOut } = useAuth();
   const [gameToDelete, setGameToDelete] = useState<Game | null>(null);
+  const [showKeepersMenu, setShowKeepersMenu] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
+  const keepersMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (keepersMenuRef.current && !keepersMenuRef.current.contains(event.target as Node)) {
+        setShowKeepersMenu(false);
+      }
+    }
+    if (showKeepersMenu) {
+      function handleEscape(event: KeyboardEvent) {
+        if (event.key === 'Escape') setShowKeepersMenu(false);
+      }
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleEscape);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener('keydown', handleEscape);
+      };
+    }
+  }, [showKeepersMenu]);
 
   const { data: games, isLoading: gamesLoading } = useQuery({
     queryKey: ['my-games'],
@@ -71,6 +93,7 @@ export function DashboardPage() {
     onSuccess: (data) => {
       setInviteSuccess(`${data.email} is now a game keeper!`);
       setInviteEmail('');
+      queryClient.invalidateQueries({ queryKey: ['gamekeepers'] });
       setTimeout(() => {
         setShowInviteModal(false);
         setInviteSuccess(null);
@@ -222,13 +245,39 @@ export function DashboardPage() {
             <FontAwesomeIcon icon={faPlus} />
             Create Game
           </button>
-          <button
-            onClick={() => setShowInviteModal(true)}
-            className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2.5 sm:py-3 px-4 sm:px-6 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
-          >
-            <FontAwesomeIcon icon={faUserPlus} />
-            Invite Game Keeper
-          </button>
+          <div className="relative" ref={keepersMenuRef}>
+            <button
+              onClick={() => setShowKeepersMenu(!showKeepersMenu)}
+              className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2.5 sm:py-3 px-4 sm:px-6 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base w-full sm:w-auto"
+            >
+              <FontAwesomeIcon icon={faUsers} />
+              Game Keepers
+            </button>
+            {showKeepersMenu && (
+              <div className="absolute left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10 overflow-hidden">
+                <button
+                  onClick={() => {
+                    setShowKeepersMenu(false);
+                    setShowInviteModal(true);
+                  }}
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-2 text-sm text-gray-700"
+                >
+                  <FontAwesomeIcon icon={faUserPlus} className="text-blue-500" />
+                  Add Game Keeper
+                </button>
+                <button
+                  onClick={() => {
+                    setShowKeepersMenu(false);
+                    navigate('/gamekeepers');
+                  }}
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-2 text-sm text-gray-700 border-t border-gray-100"
+                >
+                  <FontAwesomeIcon icon={faList} className="text-blue-500" />
+                  View List
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <section>
