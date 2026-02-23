@@ -8,6 +8,7 @@ import {
   faMedal,
   faImages,
   faDownload,
+  faHeart,
 } from '@fortawesome/free-solid-svg-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchTeams, finalizeGame } from '../../api';
@@ -26,6 +27,7 @@ interface TeamScore {
   submittedCount: number; // Raw count of completed scenarios (for display)
   completedCount: number; // Scored completions (excluding disqualified)
   bonusCount: number;
+  crowdFavoriteCount: number;
   disqualifiedCount: number;
   totalScore: number;
   position: number;
@@ -75,33 +77,44 @@ export function ResultsView({ game, isGameKeeper }: ResultsViewProps) {
     const bonusCount = game.scenarios.filter(
       (s) => s.bonusAwardedTo === team.id
     ).length;
+
+    // Count crowd favorite wins
+    const crowdFavoriteCount = game.scenarios.filter(
+      (s) => s.crowdFavorites?.includes(team.id)
+    ).length;
     
     return {
       team,
       submittedCount,
       completedCount,
       bonusCount,
+      crowdFavoriteCount,
       disqualifiedCount,
-      totalScore: completedCount + bonusCount,
+      totalScore: completedCount + bonusCount + crowdFavoriteCount,
       position: 0, // Will be set after sorting
     };
   });
 
-  // Sort by total score (descending), then by bonus count (tiebreaker)
+  // Sort by total score (descending), then by crowd favorites, then by bonus count (tiebreaker)
   teamScores.sort((a, b) => {
     // Primary: total score
     if (b.totalScore !== a.totalScore) {
       return b.totalScore - a.totalScore;
     }
-    // Tiebreaker: more bonuses wins
+    // First tiebreaker: more crowd favorites wins
+    if (b.crowdFavoriteCount !== a.crowdFavoriteCount) {
+      return b.crowdFavoriteCount - a.crowdFavoriteCount;
+    }
+    // Second tiebreaker: more bonuses wins
     return b.bonusCount - a.bonusCount;
   });
   
-  // Assign positions, handling ties (only if both score AND bonus are equal)
+  // Assign positions, handling ties (only if score, crowd favorites, AND bonus are all equal)
   let currentPosition = 1;
   teamScores.forEach((ts, index) => {
     if (index > 0 && 
         teamScores[index - 1].totalScore === ts.totalScore &&
+        teamScores[index - 1].crowdFavoriteCount === ts.crowdFavoriteCount &&
         teamScores[index - 1].bonusCount === ts.bonusCount) {
       ts.position = teamScores[index - 1].position; // Same position for true ties
     } else {
@@ -324,6 +337,12 @@ export function ResultsView({ game, isGameKeeper }: ResultsViewProps) {
                             <span className="flex items-center gap-1 text-yellow-400">
                               <FontAwesomeIcon icon={faStar} />
                               {score.bonusCount} bonus
+                            </span>
+                          )}
+                          {score.crowdFavoriteCount > 0 && (
+                            <span className="flex items-center gap-1 text-pink-400">
+                              <FontAwesomeIcon icon={faHeart} />
+                              {score.crowdFavoriteCount} crowd
                             </span>
                           )}
                           {score.disqualifiedCount > 0 && (

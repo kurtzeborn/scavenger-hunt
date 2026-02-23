@@ -28,6 +28,9 @@ export interface ScenarioRef {
   order: number;
   bonusAwardedTo?: string; // Team ID that got bonus point
   disqualifiedTeams?: string[]; // Team IDs that were disqualified for this scenario
+  crowdVotingOpen?: boolean; // Whether crowd voting is currently open for this scenario
+  crowdVotes?: Record<string, string>; // Map of votingTeamId → votedForTeamId
+  crowdFavorites?: string[]; // Team IDs that won the crowd vote (handles ties)
 }
 
 // Main game entity

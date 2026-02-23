@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSpinner, faArrowLeft, faExclamationTriangle, faClock, faTrophy } from '@fortawesome/free-solid-svg-icons';
+import { faSpinner, faArrowLeft, faExclamationTriangle, faTrophy } from '@fortawesome/free-solid-svg-icons';
 import { fetchGame, startGame } from '../api';
 import { useAuth } from '../hooks/useAuth';
 import { usePlayerSession } from '../contexts/PlayerSessionContext';
@@ -9,6 +9,7 @@ import { JoinGameFlow } from '../components/player/JoinGameFlow';
 import { LobbyView } from '../components/game/LobbyView';
 import { ScenarioListView } from '../components/game/ScenarioListView';
 import { JudgingView } from '../components/game/JudgingView';
+import { PlayerJudgingView } from '../components/game/PlayerJudgingView';
 import { ResultsView } from '../components/game/ResultsView';
 
 export function GamePage() {
@@ -125,26 +126,13 @@ export function GamePage() {
       return <ScenarioListView game={game} isGameKeeper={isGameKeeperForGame} />;
 
     case 'judging':
-      // Game keeper sees the judging interface, players see waiting screen
+      // Game keeper sees the judging interface, players see voting/waiting screen
       if (isGameKeeperForGame) {
         return <JudgingView game={game} isGameKeeper={true} />;
       }
       
-      // Players see a waiting screen
-      return (
-        <div className="min-h-screen bg-gradient-to-b from-purple-900 via-indigo-900 to-blue-900 flex items-center justify-center p-4">
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-8 max-w-md text-center text-white">
-            <FontAwesomeIcon icon={faClock} className="text-5xl text-purple-300 mb-4 animate-pulse" />
-            <h1 className="text-2xl font-bold mb-2">⚖️ Judging in Progress</h1>
-            <p className="text-white/70 mb-6">
-              The game keeper is reviewing all submissions. Final scores will be revealed soon!
-            </p>
-            <p className="text-purple-300 text-sm">
-              Stay on this page to see the results
-            </p>
-          </div>
-        </div>
-      );
+      // Players see the voting/waiting screen
+      return <PlayerJudgingView game={game} />;
 
     case 'revealing':
       // Game keeper sees the reveal animation, players wait

@@ -4,6 +4,22 @@ This document explains how Video Scavenger Hunt works, from setup to final scori
 
 ---
 
+## Quick Rules Summary
+
+1. ⏱️ Complete as many scenarios as possible before time runs out
+2. 📸 Each scenario is photo OR video (follow the icon)
+3. 🎬 Videos are max 30 seconds
+4. 🏆 1 point per completion
+5. ⭐ 1 point bonuses possible for gamekeeper and crowd favorite
+6. ❤️ Team captains vote for crowd favorite during judging
+7. 🥇 Highest total score wins; crowd favorites then bonus count break ties
+8. 👥 Teams of 2-6 people (players + crew)
+9. 📱 Late players can join teams already in progress
+10. ⏸️ Game Keeper can pause at any time
+11. 🗑️ All media deleted after 7 days
+
+---
+
 ## Getting Started
 
 ### Basic Flow
@@ -19,7 +35,7 @@ This document explains how Video Scavenger Hunt works, from setup to final scori
 
 | Setting | Default | Options |
 |---------|---------|---------|
-| Scenarios | 10 | 10, 15, or 20 |
+| Scenarios | - | 5-25 (individually selected) |
 | Time Limit | 60 minutes | Configurable (typically 6 min per scenario) |
 | Team Size | 2-6 members | Includes both players and crew |
 | Teams per Game | 2-20 | Minimum 2 teams to start |
@@ -95,10 +111,18 @@ Each scenario requires either:
 
 ### Categories
 
-Scenarios are organized into categories for game setup:
+Scenarios are organized into categories:
 - **Location** - Require going to specific places (gas station, playground, etc.)
 - **General** - Can be done anywhere
 - **Church** - Church-related activities
+
+### Selection
+
+During game creation, the Game Keeper individually selects scenarios from the library:
+- Browse all available scenarios or filter by category
+- Toggle each scenario on/off to build a custom set
+- Minimum **5** scenarios, maximum **25**
+- Time estimate shown based on selection count (~6 min per scenario)
 
 ### Completion
 
@@ -180,6 +204,7 @@ If camera access is denied:
 |--------|--------|
 | Complete a scenario | **1 point** |
 | Receive bonus for a scenario | **1 bonus point** |
+| Win crowd favorite vote | **1 bonus point** |
 
 ### Bonus Points
 
@@ -188,19 +213,30 @@ If camera access is denied:
 - Based on creativity, humor, or best execution
 - Game Keeper can change bonus selection until judging ends
 
+### Crowd Favorite
+
+- During judging, Game Keeper opens crowd voting per scenario
+- Each team's captain (first player to join) votes for their favorite entry
+- Captains cannot vote for their own team or disqualified entries
+- Voting requires 2+ eligible entries (otherwise skipped)
+- The team(s) with the most votes earn 1 crowd favorite point
+- If tied, all tied teams get the point
+- Voting auto-closes when all captains have voted, or Game Keeper can close manually
+- Players see only their own vote; Game Keeper sees the live tally
+
 ### Score Calculation
 
 ```
-Total Score = Completed Scenarios + Bonus Points Earned
+Total Score = Completed Scenarios + Bonus Points + Crowd Favorite Points
 ```
 
 ### Example
 
-| Team | Completed | Bonuses | Total |
-|------|-----------|---------|-------|
-| Blue Team | 8 scenarios | 3 bonuses | 11 points |
-| Red Team | 10 scenarios | 1 bonus | 11 points |
-| Green Team | 7 scenarios | 2 bonuses | 9 points |
+| Team | Completed | Bonuses | Crowd Fav | Total |
+|------|-----------|---------|-----------|-------|
+| Blue Team | 8 scenarios | 3 bonuses | 1 | 12 points |
+| Red Team | 10 scenarios | 1 bonus | 0 | 11 points |
+| Green Team | 7 scenarios | 2 bonuses | 2 | 11 points |
 
 ---
 
@@ -209,21 +245,20 @@ Total Score = Completed Scenarios + Bonus Points Earned
 When teams have the same total score:
 
 1. **Primary**: Higher total score wins
-2. **Tiebreaker**: More bonus points wins
+2. **First tiebreaker**: More crowd favorite wins
+3. **Second tiebreaker**: More bonus points wins
 
-If teams have identical scores AND identical bonus counts:
-- Both teams share the same position
-- Displayed as a tie (e.g., "1st Place: Blue Team & Red Team")
+If teams are equal on all three, they share the same position (displayed as a tie).
 
 ### Tie Example
 
-| Team | Score | Bonuses | Position |
-|------|-------|---------|----------|
-| Blue Team | 11 | 3 | 🥇 1st |
-| Red Team | 11 | 1 | 🥈 2nd |
-| Green Team | 9 | 2 | 🥉 3rd |
+| Team | Score | Crowd Fav | Bonuses | Position |
+|------|-------|-----------|---------|----------|
+| Blue Team | 11 | 2 | 3 | 🥇 1st |
+| Red Team | 11 | 1 | 3 | 🥈 2nd |
+| Green Team | 9 | 1 | 2 | 🥉 3rd |
 
-Blue Team wins tiebreaker with more bonuses.
+Blue Team wins tiebreaker with more crowd favorites.
 
 ---
 
@@ -254,7 +289,8 @@ Blue Team wins tiebreaker with more bonuses.
 - Time has expired or Game Keeper ended early
 - Game Keeper reviews submissions scenario by scenario
 - Bonus points awarded
-- Players see "Judging in progress" screen
+- Crowd favorite voting opened per scenario (captains vote)
+- Players see voting screen when voting is open, otherwise "Judging in progress"
 
 ### 5. Revealing
 
@@ -298,6 +334,8 @@ Blue Team wins tiebreaker with more bonuses.
 | Award Bonus | Select one team per scenario for bonus point |
 | Change Bonus | Can re-select until "Finish Judging" |
 | Disqualify | Mark a submission as disqualified (no points) |
+| Open Voting | Open crowd favorite voting for current scenario |
+| Close Voting | Close voting and calculate winner(s) |
 | Finish Judging | Proceed to reveal |
 
 ### After Game
@@ -333,16 +371,3 @@ Blue Team wins tiebreaker with more bonuses.
 - Different device requires rejoining
 - Cleared when game is deleted
 
----
-
-## Quick Rules Summary
-
-1. ⏱️ Complete as many scenarios as possible before time runs out
-2. 📸 Each scenario is photo OR video (follow the icon)
-3. 🎬 Videos are max 30 seconds
-4. 🏆 1 point per completion + 1 possible bonus point per scenario
-5. 🥇 Highest total score wins; bonus count breaks ties
-6. 👥 Teams of 2-6 people (players + crew)
-7. 📱 Late players can join teams already in progress
-8. ⏸️ Game Keeper can pause at any time
-9. 🗑️ All media deleted after 7 days

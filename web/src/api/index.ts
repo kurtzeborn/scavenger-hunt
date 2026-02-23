@@ -157,6 +157,44 @@ export async function finalizeGame(gameId: string): Promise<Game> {
   });
 }
 
+// ============ Crowd Voting API ============
+
+export interface OpenCrowdVotingRequest {
+  scenarioId: string;
+}
+
+export async function openCrowdVoting(gameId: string, data: OpenCrowdVotingRequest): Promise<Game> {
+  return apiFetch<Game>(`/games/${gameId}/crowd-voting/open`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export interface CloseCrowdVotingRequest {
+  scenarioId: string;
+}
+
+export async function closeCrowdVoting(gameId: string, data: CloseCrowdVotingRequest): Promise<Game> {
+  return apiFetch<Game>(`/games/${gameId}/crowd-voting/close`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export interface CastCrowdVoteRequest {
+  scenarioId: string;
+  teamId: string;
+  playerId: string;
+  votedForTeamId: string;
+}
+
+export async function castCrowdVote(gameId: string, data: CastCrowdVoteRequest): Promise<Game> {
+  return apiFetch<Game>(`/games/${gameId}/crowd-voting/vote`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
 // ============ Teams API ============
 
 export interface JoinGameRequest {

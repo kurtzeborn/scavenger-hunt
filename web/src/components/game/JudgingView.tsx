@@ -11,6 +11,7 @@ import {
   faPlay,
   faFlag,
   faBan,
+  faHeart,
 } from '@fortawesome/free-solid-svg-icons';
 import { faStar as faStarOutline } from '@fortawesome/free-regular-svg-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -21,6 +22,8 @@ import {
   awardBonus,
   completeGame,
   disqualifySubmission,
+  openCrowdVoting,
+  closeCrowdVoting,
 } from '../../api';
 import type { Game, MediaSubmission } from '../../types';
 import { Toast } from '../shared/Toast';
@@ -39,6 +42,7 @@ export function JudgingView({ game, isGameKeeper }: JudgingViewProps) {
   const [currentScenarioIndex, setCurrentScenarioIndex] = useState(0);
   const [selectedSubmission, setSelectedSubmission] = useState<MediaSubmission | null>(null);
   const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [disqualifyTarget, setDisqualifyTarget] = useState<{ teamId: string; teamName: string } | null>(null);
 
@@ -95,10 +99,46 @@ export function JudgingView({ game, isGameKeeper }: JudgingViewProps) {
     },
   });
 
+  // Open crowd voting mutation
+  const openVotingMutation = useMutation({
+    mutationFn: () =>
+      openCrowdVoting(game.id, { scenarioId: currentScenario!.id }),
+    onSuccess: (updatedGame) => {
+      queryClient.setQueryData(['game', game.id], updatedGame);
+    },
+  });
+
+  // Close crowd voting mutation
+  const closeVotingMutation = useMutation({
+    mutationFn: () =>
+      closeCrowdVoting(game.id, { scenarioId: currentScenario!.id }),
+    onSuccess: (updatedGame) => {
+      queryClient.setQueryData(['game', game.id], updatedGame);
+    },
+  });
+
   // Helper to check if a team is disqualified for current scenario
   const isTeamDisqualified = (teamId: string) => {
     return currentScenarioRef?.disqualifiedTeams?.includes(teamId) ?? false;
   };
+
+  // Crowd voting state
+  const isVotingOpen = currentScenarioRef?.crowdVotingOpen ?? false;
+  const crowdVotes = currentScenarioRef?.crowdVotes ?? {};
+  const crowdFavorites = currentScenarioRef?.crowdFavorites;
+  const voteCount = Object.keys(crowdVotes).length;
+
+  // Count eligible teams for voting (teams with submissions, not disqualified)
+  const eligibleTeamIds = [...new Set(submissions.map((s) => s.teamId))]
+    .filter((id) => !isTeamDisqualified(id));
+  const canOpenVoting = eligibleTeamIds.length >= 2 && !isVotingOpen && !crowdFavorites;
+  const hasVotingBeenDone = crowdFavorites !== undefined;
+
+  // Vote tally for GK display
+  const voteTally: Record<string, number> = {};
+  for (const votedForTeamId of Object.values(crowdVotes)) {
+    voteTally[votedForTeamId] = (voteTally[votedForTeamId] || 0) + 1;
+  }
 
   // Handle disqualification - show confirm for disqualify, instant for un-disqualify
   const handleDisqualifyClick = (teamId: string, teamName: string) => {
@@ -117,6 +157,29 @@ export function JudgingView({ game, isGameKeeper }: JudgingViewProps) {
   // Check if current scenario has a favorite selected
   const hasFavoriteSelected = currentScenarioRef?.bonusAwardedTo !== undefined;
 
+  // Helper to show a toast message
+  const showToastMessage = (message: string) => {
+    setToastMessage(message);
+    setShowToast(true);
+  };
+
+  // Check if navigation is blocked
+  const isNavigationBlocked = () => {
+    if (isVotingOpen) {
+      showToastMessage('Close voting before continuing');
+      return true;
+    }
+    if (!hasFavoriteSelected && submissions.length > 0) {
+      showToastMessage('Please pick a favorite before continuing');
+      return true;
+    }
+    if (eligibleTeamIds.length >= 2 && !hasVotingBeenDone) {
+      showToastMessage('Please open and close crowd voting before continuing');
+      return true;
+    }
+    return false;
+  };
+
   const goToPrevious = () => {
     if (!isFirstScenario) {
       setCurrentScenarioIndex(currentScenarioIndex - 1);
@@ -125,21 +188,13 @@ export function JudgingView({ game, isGameKeeper }: JudgingViewProps) {
 
   const goToNext = () => {
     if (!isLastScenario) {
-      // Check if favorite is selected before advancing
-      if (!hasFavoriteSelected && submissions.length > 0) {
-        setShowToast(true);
-        return;
-      }
+      if (isNavigationBlocked()) return;
       setCurrentScenarioIndex(currentScenarioIndex + 1);
     }
   };
 
   const handleFinishJudging = () => {
-    // Check if favorite is selected for current scenario
-    if (!hasFavoriteSelected && submissions.length > 0) {
-      setShowToast(true);
-      return;
-    }
+    if (isNavigationBlocked()) return;
     setShowFinishConfirm(true);
   };
 
@@ -153,10 +208,10 @@ export function JudgingView({ game, isGameKeeper }: JudgingViewProps) {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Toast for "Please pick a favorite" */}
+      {/* Toast for validation messages */}
       {showToast && (
         <Toast
-          message="Please pick a favorite before continuing"
+          message={toastMessage}
           variant="error"
           duration={2500}
           onClose={() => setShowToast(false)}
@@ -366,6 +421,80 @@ export function JudgingView({ game, isGameKeeper }: JudgingViewProps) {
           </div>
         )}
 
+        {/* Crowd Voting Section */}
+        {isGameKeeper && submissions.length > 0 && (
+          <div className="mt-6 bg-white rounded-xl shadow p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <FontAwesomeIcon icon={faHeart} className="text-pink-500" />
+                <h3 className="font-bold text-gray-800">Crowd Favorite</h3>
+              </div>
+
+              {/* Voting status / action button */}
+              {isVotingOpen ? (
+                <button
+                  onClick={() => closeVotingMutation.mutate()}
+                  disabled={closeVotingMutation.isPending}
+                  className="bg-pink-500 hover:bg-pink-600 disabled:bg-pink-400 text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm"
+                >
+                  {closeVotingMutation.isPending ? 'Closing...' : `Close Voting (${voteCount} vote${voteCount !== 1 ? 's' : ''})`}
+                </button>
+              ) : hasVotingBeenDone ? (
+                <span className="text-sm text-gray-500 flex items-center gap-1">
+                  <FontAwesomeIcon icon={faHeart} className="text-pink-400" />
+                  Voting complete
+                </span>
+              ) : canOpenVoting ? (
+                <button
+                  onClick={() => openVotingMutation.mutate()}
+                  disabled={openVotingMutation.isPending}
+                  className="bg-pink-100 hover:bg-pink-200 text-pink-700 font-medium py-2 px-4 rounded-lg transition-colors text-sm"
+                >
+                  {openVotingMutation.isPending ? 'Opening...' : 'Open Voting'}
+                </button>
+              ) : eligibleTeamIds.length < 2 ? (
+                <span className="text-sm text-gray-400">Not enough entries</span>
+              ) : null}
+            </div>
+
+            {/* Live vote tally (only when voting is open or done) */}
+            {(isVotingOpen || hasVotingBeenDone) && (
+              <div className="space-y-1">
+                {eligibleTeamIds.map((teamId) => {
+                  const team = teams.find((t) => t.id === teamId);
+                  const votes = voteTally[teamId] || 0;
+                  const isCrowdFavorite = crowdFavorites?.includes(teamId);
+
+                  return (
+                    <div
+                      key={teamId}
+                      className={`flex items-center gap-2 py-1 px-2 rounded ${
+                        isCrowdFavorite ? 'bg-pink-50' : ''
+                      }`}
+                    >
+                      <div
+                        className="w-3 h-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: team?.color }}
+                      />
+                      <span className="text-sm text-gray-700 flex-1 truncate">
+                        {team?.name}
+                      </span>
+                      {isCrowdFavorite && (
+                        <FontAwesomeIcon icon={faHeart} className="text-pink-500 text-sm" />
+                      )}
+                      <span className={`text-sm font-medium ${
+                        isCrowdFavorite ? 'text-pink-600' : 'text-gray-500'
+                      }`}>
+                        {votes} vote{votes !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Navigation Buttons */}
         <div className="flex items-center justify-between mt-8">
           <button
@@ -386,7 +515,10 @@ export function JudgingView({ game, isGameKeeper }: JudgingViewProps) {
             {gameScenarios.map((_, index) => (
               <button
                 key={index}
-                onClick={() => setCurrentScenarioIndex(index)}
+                onClick={() => {
+                  if (index !== currentScenarioIndex && index > currentScenarioIndex && isNavigationBlocked()) return;
+                  setCurrentScenarioIndex(index);
+                }}
                 className={`w-2.5 h-2.5 rounded-full transition-colors ${
                   index === currentScenarioIndex
                     ? 'bg-purple-600'

@@ -28,7 +28,7 @@ A multiplayer video scavenger hunt game where teams compete to act out scenarios
 | Scenarios per Game | 5-25 (free pick from library) |
 | Time Limit | 6 min/scenario default (60 min for 10), configurable |
 | Video Duration | 30 seconds max |
-| Scoring | 1 point per completion + 1 bonus point available per scenario |
+| Scoring | 1 point per completion + 1 bonus point + 1 crowd favorite point available per scenario |
 | Video Retention | 7 days auto-delete, manual cleanup available |
 | Real-time Updates | Within 30 seconds acceptable |
 
@@ -358,6 +358,13 @@ POST   /api/games/:id/bonus          Award bonus point for scenario
 GET    /api/games/:id/scores         Get final scores
 ```
 
+### Crowd Voting
+```
+POST   /api/games/:id/crowd-voting/open   Open voting for a scenario (GK only)
+POST   /api/games/:id/crowd-voting/close  Close voting and calculate winner (GK only)
+POST   /api/games/:id/crowd-voting/vote   Cast a vote (captain only, anonymous)
+```
+
 ### Scenarios (Library - Game Keeper Only)
 ```
 GET    /api/scenarios                List all scenarios
@@ -472,6 +479,9 @@ All users arrive at the same landing page. The UI adapts based on authentication
    - Scenario-by-scenario media review
    - View photos or play videos from each team
    - Award bonus point per scenario
+   - Open/close crowd favorite voting per scenario
+   - Live vote tally visible to Game Keeper
+   - Must close voting before advancing
    - "Next Scenario" to continue
 6. Results
    - Final leaderboard
@@ -1091,6 +1101,17 @@ Support for team members who participate but don't have their own device, plus a
 - [x] Cache invalidation: adding a keeper refreshes the list page data
 - [x] Keepers sorted alphabetically by display name
 - [x] Escape key closes dropdown menu
+
+### Phase 5.3: Crowd Favorite Voting
+- [x] `ScenarioRef` extended with `crowdVotingOpen`, `crowdVotes`, `crowdFavorites` fields
+- [x] `POST /api/games/:id/crowd-voting/open` - GK opens voting for a scenario
+- [x] `POST /api/games/:id/crowd-voting/close` - GK closes voting, calculates winner(s) (ties shared)
+- [x] `POST /api/games/:id/crowd-voting/vote` - Captain casts vote (validates captain by joinedAt, prevents self-vote, checks DQ)
+- [x] GK JudgingView: Open/Close Voting button, live vote tally, blocked navigation while voting open
+- [x] PlayerJudgingView: Captain sees voting UI with team list, non-captains see waiting screen
+- [x] ResultsView: +1 crowd favorite point per win, tiebreaker order: score → crowd favorites → bonus
+- [x] Heart icon (❤️) used throughout (distinct from star ⭐ for bonus)
+- [x] Voting skipped when <2 eligible entries per scenario
 
 ### Phase 6: Future Enhancements
 - [ ] Pre-assigned teams mode (game keeper creates teams in advance)

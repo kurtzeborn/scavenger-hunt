@@ -1,4 +1,4 @@
-import type { Game, Scenario } from '../types';
+import type { Game, Scenario, Player } from '../types';
 
 /**
  * Given a game and all available scenarios, returns the game's scenarios
@@ -12,6 +12,18 @@ export function getOrderedGameScenarios(
     .sort((a, b) => a.order - b.order)
     .map((ref) => allScenarios.find((s) => s.id === ref.scenarioId))
     .filter((s): s is Scenario => s !== undefined);
+}
+
+/**
+ * Get the captain (first player to join) of a team.
+ * Returns the player ID of the captain, or undefined if no players.
+ */
+export function getCaptainId(players: Player[]): string | undefined {
+  if (players.length === 0) return undefined;
+  const sorted = [...players].sort(
+    (a, b) => new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime()
+  );
+  return sorted[0].id;
 }
 
 /**

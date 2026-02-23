@@ -1,10 +1,19 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { v4 as uuidv4 } from 'uuid';
-import { gamesTable } from '../storage.js';
+import { gamesTable, teamsTable } from '../storage.js';
 import { requireGameKeeper, AuthError, getAuthUser, isGameKeeper, AuthUser } from '../auth.js';
-import { Game, GameEntity, GameConfig, ScenarioRef, GAME_CODE_CHARS, MIN_SCENARIOS, MAX_SCENARIOS } from '../types.js';
+import { Game, GameEntity, GameConfig, ScenarioRef, TeamEntity, Player, GAME_CODE_CHARS, MIN_SCENARIOS, MAX_SCENARIOS } from '../types.js';
 
 // ============ Helper Functions ============
+
+// Get the captain (first player to join) of a team
+function getCaptainId(players: Player[]): string | undefined {
+  if (players.length === 0) return undefined;
+  const sorted = [...players].sort(
+    (a, b) => new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime()
+  );
+  return sorted[0].id;
+}
 
 // Generate a random 4-letter game code
 function generateGameCode(): string {
@@ -624,6 +633,209 @@ app.http('finalizeGame', {
       return { status: 200, jsonBody: entityToGame(entity) };
     } catch (error) {
       return handleError(error, context, 'finalize game');
+    }
+  },
+});
+
+// POST /api/games/:id/crowd-voting/open - Open crowd voting for a scenario
+app.http('openCrowdVoting', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'games/{gameId}/crowd-voting/open',
+  handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
+    try {
+      const gameId = getGameIdParam(request);
+      const body = await request.json() as { scenarioId: string };
+
+      if (!body.scenarioId) {
+        throw new ValidationError('scenarioId is required');
+      }
+
+      const { entity } = await getOwnedGameEntity(request, gameId);
+
+      if (entity.status !== 'judging') {
+        throw new InvalidGameStateError('Crowd voting can only be opened during judging phase');
+      }
+
+      const scenarios: ScenarioRef[] = JSON.parse(entity.scenarios);
+      const scenarioRef = scenarios.find(s => s.scenarioId === body.scenarioId);
+
+      if (!scenarioRef) {
+        throw new ScenarioNotFoundError(body.scenarioId);
+      }
+
+      // Close any other scenario that has voting open
+      for (const s of scenarios) {
+        if (s.scenarioId !== body.scenarioId && s.crowdVotingOpen) {
+          s.crowdVotingOpen = false;
+        }
+      }
+
+      scenarioRef.crowdVotingOpen = true;
+      scenarioRef.crowdVotes = {};
+      scenarioRef.crowdFavorites = undefined;
+      entity.scenarios = JSON.stringify(scenarios);
+
+      await gamesTable.updateEntity(entity, 'Merge');
+
+      return { status: 200, jsonBody: entityToGame(entity) };
+    } catch (error) {
+      return handleError(error, context, 'open crowd voting');
+    }
+  },
+});
+
+// POST /api/games/:id/crowd-voting/close - Close crowd voting for a scenario and calculate winners
+app.http('closeCrowdVoting', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'games/{gameId}/crowd-voting/close',
+  handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
+    try {
+      const gameId = getGameIdParam(request);
+      const body = await request.json() as { scenarioId: string };
+
+      if (!body.scenarioId) {
+        throw new ValidationError('scenarioId is required');
+      }
+
+      const { entity } = await getOwnedGameEntity(request, gameId);
+
+      if (entity.status !== 'judging') {
+        throw new InvalidGameStateError('Crowd voting can only be closed during judging phase');
+      }
+
+      const scenarios: ScenarioRef[] = JSON.parse(entity.scenarios);
+      const scenarioRef = scenarios.find(s => s.scenarioId === body.scenarioId);
+
+      if (!scenarioRef) {
+        throw new ScenarioNotFoundError(body.scenarioId);
+      }
+
+      scenarioRef.crowdVotingOpen = false;
+
+      // Calculate crowd favorites from votes
+      const votes = scenarioRef.crowdVotes || {};
+      const voteCounts: Record<string, number> = {};
+      for (const votedForTeamId of Object.values(votes)) {
+        voteCounts[votedForTeamId] = (voteCounts[votedForTeamId] || 0) + 1;
+      }
+
+      // Find max vote count (if any votes were cast)
+      const maxVotes = Math.max(0, ...Object.values(voteCounts));
+      if (maxVotes > 0) {
+        // All teams tied at max get the crowd favorite
+        scenarioRef.crowdFavorites = Object.entries(voteCounts)
+          .filter(([, count]) => count === maxVotes)
+          .map(([teamId]) => teamId);
+      } else {
+        scenarioRef.crowdFavorites = [];
+      }
+
+      entity.scenarios = JSON.stringify(scenarios);
+
+      await gamesTable.updateEntity(entity, 'Merge');
+
+      return { status: 200, jsonBody: entityToGame(entity) };
+    } catch (error) {
+      return handleError(error, context, 'close crowd voting');
+    }
+  },
+});
+
+// POST /api/games/:id/crowd-voting/vote - Cast a crowd vote (captain only)
+app.http('castCrowdVote', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'games/{gameId}/crowd-voting/vote',
+  handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
+    try {
+      const gameId = getGameIdParam(request);
+      const body = await request.json() as {
+        scenarioId: string;
+        teamId: string;
+        playerId: string;
+        votedForTeamId: string;
+      };
+
+      if (!body.scenarioId || !body.teamId || !body.playerId || !body.votedForTeamId) {
+        throw new ValidationError('scenarioId, teamId, playerId, and votedForTeamId are required');
+      }
+
+      // Can't vote for own team
+      if (body.teamId === body.votedForTeamId) {
+        throw new ValidationError('Cannot vote for your own team');
+      }
+
+      // Get game entity (no auth required - anonymous players vote)
+      const entity = await getGameEntity(gameId);
+
+      if (entity.status !== 'judging') {
+        throw new InvalidGameStateError('Voting is only available during judging phase');
+      }
+
+      const scenarios: ScenarioRef[] = JSON.parse(entity.scenarios);
+      const scenarioRef = scenarios.find(s => s.scenarioId === body.scenarioId);
+
+      if (!scenarioRef) {
+        throw new ScenarioNotFoundError(body.scenarioId);
+      }
+
+      if (!scenarioRef.crowdVotingOpen) {
+        throw new InvalidGameStateError('Voting is not open for this scenario');
+      }
+
+      // Validate the voted-for team is not disqualified
+      if (scenarioRef.disqualifiedTeams?.includes(body.votedForTeamId)) {
+        throw new ValidationError('Cannot vote for a disqualified team');
+      }
+
+      // Validate captain: get the team and check if playerId is the first player by joinedAt
+      let teamEntity: TeamEntity;
+      try {
+        teamEntity = await teamsTable.getEntity<TeamEntity>(gameId, body.teamId);
+      } catch (error: any) {
+        if (error.statusCode === 404) {
+          throw new ValidationError('Team not found');
+        }
+        throw error;
+      }
+
+      const players: Player[] = JSON.parse(teamEntity.players || '[]');
+      if (players.length === 0) {
+        throw new ValidationError('Team has no players');
+      }
+
+      // Captain is the first player by joinedAt
+      const captainId = getCaptainId(players);
+
+      if (captainId !== body.playerId) {
+        throw new ValidationError('Only the team captain can vote');
+      }
+
+      // Validate the voted-for team exists
+      try {
+        await teamsTable.getEntity<TeamEntity>(gameId, body.votedForTeamId);
+      } catch (error: any) {
+        if (error.statusCode === 404) {
+          throw new ValidationError('Voted-for team not found');
+        }
+        throw error;
+      }
+
+      // Record vote (overwrite if already voted)
+      if (!scenarioRef.crowdVotes) {
+        scenarioRef.crowdVotes = {};
+      }
+      scenarioRef.crowdVotes[body.teamId] = body.votedForTeamId;
+
+      entity.scenarios = JSON.stringify(scenarios);
+
+      await gamesTable.updateEntity(entity, 'Merge');
+
+      return { status: 200, jsonBody: entityToGame(entity) };
+    } catch (error) {
+      return handleError(error, context, 'cast crowd vote');
     }
   },
 });
