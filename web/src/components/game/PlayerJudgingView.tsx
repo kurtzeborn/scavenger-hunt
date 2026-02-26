@@ -48,10 +48,9 @@ export function PlayerJudgingView({ game }: PlayerJudgingViewProps) {
 
   // Determine if current player is captain (first player to join the team)
   const playerTeam = teams.find((t: Team) => t.id === session?.teamId);
-  const isCaptain = (() => {
-    if (!playerTeam || !session) return false;
-    return getCaptainId(playerTeam.players) === session.playerId;
-  })();
+  const isCaptain = playerTeam && session
+    ? getCaptainId(playerTeam.players) === session.playerId
+    : false;
 
   // Find the scenario with voting currently open
   const activeVotingScenario = game.scenarios.find((s) => s.crowdVotingOpen);

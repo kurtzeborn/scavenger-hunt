@@ -31,6 +31,8 @@ import { ConfirmModal } from '../shared/ConfirmModal';
 import { MediaModal } from '../shared/MediaModal';
 import { getOrderedGameScenarios } from '../../utils/gameUtils';
 
+const MIN_TEAMS_FOR_VOTING = 3;
+
 interface JudgingViewProps {
   game: Game;
   isGameKeeper: boolean;
@@ -127,11 +129,12 @@ export function JudgingView({ game, isGameKeeper }: JudgingViewProps) {
   const crowdVotes = currentScenarioRef?.crowdVotes ?? {};
   const crowdFavorites = currentScenarioRef?.crowdFavorites;
   const voteCount = Object.keys(crowdVotes).length;
+  const allVotesIn = voteCount >= teams.length;
 
   // Count eligible teams for voting (teams with submissions, not disqualified)
   const eligibleTeamIds = [...new Set(submissions.map((s) => s.teamId))]
     .filter((id) => !isTeamDisqualified(id));
-  const canOpenVoting = eligibleTeamIds.length >= 2 && !isVotingOpen && !crowdFavorites;
+  const canOpenVoting = teams.length >= MIN_TEAMS_FOR_VOTING && eligibleTeamIds.length >= 2 && !isVotingOpen && !crowdFavorites;
   const hasVotingBeenDone = crowdFavorites !== undefined;
 
   // Vote tally for GK display
@@ -173,7 +176,7 @@ export function JudgingView({ game, isGameKeeper }: JudgingViewProps) {
       showToastMessage('Please pick a favorite before continuing');
       return true;
     }
-    if (eligibleTeamIds.length >= 2 && !hasVotingBeenDone) {
+    if (teams.length >= MIN_TEAMS_FOR_VOTING && eligibleTeamIds.length >= 2 && !hasVotingBeenDone) {
       showToastMessage('Please open and close crowd voting before continuing');
       return true;
     }
@@ -421,8 +424,8 @@ export function JudgingView({ game, isGameKeeper }: JudgingViewProps) {
           </div>
         )}
 
-        {/* Crowd Voting Section */}
-        {isGameKeeper && submissions.length > 0 && (
+        {/* Crowd Voting Section (hidden with < 3 teams since voting is meaningless) */}
+        {isGameKeeper && submissions.length > 0 && teams.length >= MIN_TEAMS_FOR_VOTING && (
           <div className="mt-6 bg-white rounded-xl shadow p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -435,9 +438,9 @@ export function JudgingView({ game, isGameKeeper }: JudgingViewProps) {
                 <button
                   onClick={() => closeVotingMutation.mutate()}
                   disabled={closeVotingMutation.isPending}
-                  className="bg-pink-500 hover:bg-pink-600 disabled:bg-pink-400 text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm"
+                  className={`${allVotesIn ? 'bg-green-500 hover:bg-green-600 disabled:bg-green-400' : 'bg-pink-500 hover:bg-pink-600 disabled:bg-pink-400'} text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm`}
                 >
-                  {closeVotingMutation.isPending ? 'Closing...' : `Close Voting (${voteCount} vote${voteCount !== 1 ? 's' : ''})`}
+                  {closeVotingMutation.isPending ? 'Closing...' : `Close Voting (${voteCount}/${teams.length} vote${voteCount !== 1 ? 's' : ''})`}
                 </button>
               ) : hasVotingBeenDone ? (
                 <span className="text-sm text-gray-500 flex items-center gap-1">
