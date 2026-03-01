@@ -75,14 +75,12 @@ export function JudgingView({ game, isGameKeeper }: JudgingViewProps) {
     enabled: !!currentScenario,
   });
 
-  // Randomize submission order per scenario so no team is consistently shown first
-  const shuffledSubmissions = useMemo(() => {
-    const arr = [...submissions];
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
+  // Sort submissions by upload time (earliest first) so teams that submitted
+  // first are shown first — rewards original ideas over copying
+  const orderedSubmissions = useMemo(() => {
+    return [...submissions].sort(
+      (a, b) => new Date(a.uploadedAt).getTime() - new Date(b.uploadedAt).getTime()
+    );
   }, [submissions]);
 
   // Award bonus mutation
@@ -330,7 +328,7 @@ export function JudgingView({ game, isGameKeeper }: JudgingViewProps) {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {shuffledSubmissions.map((submission) => {
+            {orderedSubmissions.map((submission) => {
               const team = teams.find((t) => t.id === submission.teamId);
               const hasBonus = currentScenarioRef?.bonusAwardedTo === submission.teamId;
               const isDisqualified = isTeamDisqualified(submission.teamId);
