@@ -29,7 +29,7 @@ import type { Game, MediaSubmission } from '../../types';
 import { Toast } from '../shared/Toast';
 import { ConfirmModal } from '../shared/ConfirmModal';
 import { MediaModal } from '../shared/MediaModal';
-import { getOrderedGameScenarios } from '../../utils/gameUtils';
+import { getDifficultySortedScenarios } from '../../utils/gameUtils';
 
 const MIN_TEAMS_FOR_VOTING = 3;
 
@@ -60,8 +60,8 @@ export function JudgingView({ game, isGameKeeper }: JudgingViewProps) {
     queryFn: fetchScenarios,
   });
 
-  // Get scenarios for this game in order
-  const gameScenarios = getOrderedGameScenarios(game, allScenarios);
+  // Get scenarios for this game sorted by difficulty (easy → medium → hard)
+  const gameScenarios = getDifficultySortedScenarios(game, allScenarios);
 
   const currentScenario = gameScenarios[currentScenarioIndex];
   const currentScenarioRef = game.scenarios.find(

@@ -1,4 +1,11 @@
-import type { Game, Scenario, Player } from '../types';
+import type { Game, Scenario, Player, Difficulty } from '../types';
+
+// Difficulty sort order for scoring playback: easy first, then medium, then hard
+const DIFFICULTY_ORDER: Record<Difficulty, number> = {
+  easy: 0,
+  medium: 1,
+  hard: 2,
+};
 
 /**
  * Given a game and all available scenarios, returns the game's scenarios
@@ -12,6 +19,32 @@ export function getOrderedGameScenarios(
     .sort((a, b) => a.order - b.order)
     .map((ref) => allScenarios.find((s) => s.id === ref.scenarioId))
     .filter((s): s is Scenario => s !== undefined);
+}
+
+/**
+ * Returns game scenarios sorted by difficulty (easy → medium → hard),
+ * then by original order within the same difficulty level.
+ * Used for scoring/judging playback.
+ */
+export function getDifficultySortedScenarios(
+  game: Game,
+  allScenarios: Scenario[]
+): Scenario[] {
+  const scenariosWithOrder = game.scenarios
+    .map((ref) => ({
+      scenario: allScenarios.find((s) => s.id === ref.scenarioId),
+      order: ref.order,
+    }))
+    .filter((s): s is { scenario: Scenario; order: number } => s.scenario !== undefined);
+
+  return scenariosWithOrder
+    .sort((a, b) => {
+      const diffA = DIFFICULTY_ORDER[a.scenario.difficulty || 'medium'];
+      const diffB = DIFFICULTY_ORDER[b.scenario.difficulty || 'medium'];
+      if (diffA !== diffB) return diffA - diffB;
+      return a.order - b.order;
+    })
+    .map((s) => s.scenario);
 }
 
 /**
