@@ -48,6 +48,7 @@ export function MediaCapture({ game, scenario, onComplete, onCancel }: MediaCapt
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const uploadCompleteRef = useRef(false);
   const animationFrameRef = useRef<number | null>(null);
+  const [capturedOrientationAngle, setCapturedOrientationAngle] = useState<number | undefined>(undefined);
 
   const isVideo = scenario.mediaType === 'video';
 
@@ -133,6 +134,14 @@ export function MediaCapture({ game, scenario, onComplete, onCancel }: MediaCapt
     setRecordingTime(0);
     setCaptureState('recording');
 
+    // Capture device orientation at recording start for video orientation fix
+    const angle = screen.orientation?.angle ?? 0;
+    const vTrack = stream.getVideoTracks()[0];
+    const vSettings = vTrack?.getSettings();
+    const isDeviceLandscape = angle === 90 || angle === 270;
+    const isStreamPortrait = (vSettings?.height ?? 0) > (vSettings?.width ?? 0);
+    setCapturedOrientationAngle(isDeviceLandscape && isStreamPortrait ? angle : undefined);
+
     const options = { mimeType: 'video/webm;codecs=vp8,opus' };
     let mediaRecorder: MediaRecorder;
     
@@ -184,21 +193,50 @@ export function MediaCapture({ game, scenario, onComplete, onCancel }: MediaCapt
     }, 1000);
   }, [stream, stopRecording]);
 
-  // Photo Capture
+  // Photo Capture — with orientation correction
+  // Some mobile browsers don't rotate getUserMedia frames when the device is in
+  // landscape, so canvas.drawImage captures sideways pixels. We detect this by
+  // comparing screen.orientation.angle with the stream's aspect ratio and rotate
+  // the canvas accordingly.
   const capturePhoto = useCallback(() => {
     if (!videoRef.current || !canvasRef.current) return;
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+
+    // Detect orientation mismatch: device in landscape but stream is portrait
+    const angle = screen.orientation?.angle ?? 0;
+    const isDeviceLandscape = angle === 90 || angle === 270;
+    const isVideoPortrait = vh > vw;
+    const needsRotation = isDeviceLandscape && isVideoPortrait;
+
+    if (needsRotation) {
+      // Output landscape dimensions
+      canvas.width = vh;
+      canvas.height = vw;
+      ctx.save();
+      if (angle === 90) {
+        // Phone right-side up → rotate 90° CCW
+        ctx.translate(0, vw);
+        ctx.rotate(-Math.PI / 2);
+      } else {
+        // angle === 270 → rotate 90° CW
+        ctx.translate(vh, 0);
+        ctx.rotate(Math.PI / 2);
+      }
+      ctx.drawImage(video, 0, 0, vw, vh);
+      ctx.restore();
+    } else {
+      canvas.width = vw;
+      canvas.height = vh;
+      ctx.drawImage(video, 0, 0, vw, vh);
+    }
+
     canvas.toBlob((blob) => {
       if (blob) {
         setMediaBlob(blob);
@@ -263,6 +301,7 @@ export function MediaCapture({ game, scenario, onComplete, onCancel }: MediaCapt
         mediaType: scenario.mediaType,
         playerId: session.playerId,
         durationSeconds: isVideo ? recordingTime : undefined,
+        orientationAngle: isVideo ? capturedOrientationAngle : undefined,
       };
 
       try {

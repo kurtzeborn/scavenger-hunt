@@ -1,4 +1,5 @@
 import type { Game, Scenario, Player, Difficulty } from '../types';
+import type React from 'react';
 
 // Difficulty sort order for scoring playback: easy first, then medium, then hard
 const DIFFICULTY_ORDER: Record<Difficulty, number> = {
@@ -77,8 +78,19 @@ export function getOrdinalSuffix(n: number): string {
 }
 
 /**
- * Get position label (1st, 2nd, 3rd, etc.)
+ * Get CSS style to correct video orientation.
+ * When a video was recorded with a mismatched device/stream orientation,
+ * we store the device angle at capture time and apply a CSS rotation at display.
  */
+export function getVideoRotationStyle(orientationAngle?: number): React.CSSProperties {
+  if (orientationAngle === 90) {
+    return { transform: 'rotate(-90deg)', transformOrigin: 'center center' };
+  }
+  if (orientationAngle === 270) {
+    return { transform: 'rotate(90deg)', transformOrigin: 'center center' };
+  }
+  return {};
+}
 export function getPositionLabel(position: number): string {
   return `${position}${getOrdinalSuffix(position)}`;
 }

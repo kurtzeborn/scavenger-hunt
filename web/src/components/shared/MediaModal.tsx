@@ -9,6 +9,7 @@ import {
   faSpinner,
 } from '@fortawesome/free-solid-svg-icons';
 import type { MediaSubmission, Scenario, Team } from '../../types';
+import { getVideoRotationStyle } from '../../utils/gameUtils';
 
 interface MediaModalProps {
   submission: MediaSubmission;
@@ -129,6 +130,7 @@ export function MediaModal({
               controls
               autoPlay
               className="w-full h-full object-contain"
+              style={getVideoRotationStyle(submission.orientationAngle)}
             />
           ) : (
             <img
@@ -175,6 +177,7 @@ export function MediaThumbnail({
               <video
                 src={submission.blobUrl}
                 className="w-full h-full object-cover"
+                style={getVideoRotationStyle(submission.orientationAngle)}
                 muted
               />
               <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">

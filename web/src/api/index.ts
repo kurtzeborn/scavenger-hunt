@@ -260,6 +260,7 @@ export interface UploadMediaRequest {
   mediaType: 'photo' | 'video';
   playerId: string;
   durationSeconds?: number;
+  orientationAngle?: number; // Device orientation at capture time (for video rotation fix)
 }
 
 export interface UploadMediaResponse {
@@ -284,6 +285,9 @@ export async function uploadMedia(
   });
   if (data.durationSeconds !== undefined) {
     params.set('durationSeconds', data.durationSeconds.toString());
+  }
+  if (data.orientationAngle !== undefined) {
+    params.set('orientationAngle', data.orientationAngle.toString());
   }
 
   const authHeaders = getAuthHeader();

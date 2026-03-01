@@ -104,6 +104,7 @@ export interface MediaSubmission {
   mediaType: MediaType;
   status: UploadStatus;
   durationSeconds?: number; // Only for videos
+  orientationAngle?: number; // Device orientation at capture (for video rotation fix)
   errorMessage?: string;
 }
 
@@ -198,5 +199,6 @@ export interface MediaSubmissionEntity {
   mediaType: MediaType;
   status: UploadStatus;
   durationSeconds?: number;
+  orientationAngle?: number;
   errorMessage?: string;
 }

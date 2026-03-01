@@ -29,7 +29,7 @@ import type { Game, MediaSubmission } from '../../types';
 import { Toast } from '../shared/Toast';
 import { ConfirmModal } from '../shared/ConfirmModal';
 import { MediaModal } from '../shared/MediaModal';
-import { getDifficultySortedScenarios } from '../../utils/gameUtils';
+import { getDifficultySortedScenarios, getVideoRotationStyle } from '../../utils/gameUtils';
 
 const MIN_TEAMS_FOR_VOTING = 3;
 
@@ -354,6 +354,7 @@ export function JudgingView({ game, isGameKeeper }: JudgingViewProps) {
                         <video
                           src={submission.blobUrl}
                           className="w-full h-full object-cover"
+                          style={getVideoRotationStyle(submission.orientationAngle)}
                           muted
                         />
                         <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">

@@ -71,6 +71,7 @@ function entityToSubmission(entity: MediaSubmissionEntity): MediaSubmission {
     mediaType: entity.mediaType,
     status: entity.status,
     durationSeconds: entity.durationSeconds,
+    orientationAngle: entity.orientationAngle,
     errorMessage: entity.errorMessage,
   };
 }
@@ -133,6 +134,7 @@ app.http('uploadMedia', {
       const mediaType = request.query.get('mediaType') as MediaType;
       const playerId = request.query.get('playerId');
       const durationSeconds = request.query.get('durationSeconds');
+      const orientationAngle = request.query.get('orientationAngle');
 
       if (!teamId || !scenarioId || !mediaType || !playerId) {
         return {
@@ -248,6 +250,7 @@ app.http('uploadMedia', {
         mediaType,
         status: 'complete' as const,
         durationSeconds: durationSeconds ? parseInt(durationSeconds, 10) : undefined,
+        orientationAngle: orientationAngle ? parseInt(orientationAngle, 10) : undefined,
       };
 
       await mediaSubmissionsTable.upsertEntity(submissionEntity, 'Replace');
