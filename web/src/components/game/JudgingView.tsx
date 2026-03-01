@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -74,6 +74,16 @@ export function JudgingView({ game, isGameKeeper }: JudgingViewProps) {
     queryFn: () => fetchScenarioVideos(game.id, currentScenario!.id),
     enabled: !!currentScenario,
   });
+
+  // Randomize submission order per scenario so no team is consistently shown first
+  const shuffledSubmissions = useMemo(() => {
+    const arr = [...submissions];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }, [submissions]);
 
   // Award bonus mutation
   const bonusMutation = useMutation({
@@ -320,7 +330,7 @@ export function JudgingView({ game, isGameKeeper }: JudgingViewProps) {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {submissions.map((submission) => {
+            {shuffledSubmissions.map((submission) => {
               const team = teams.find((t) => t.id === submission.teamId);
               const hasBonus = currentScenarioRef?.bonusAwardedTo === submission.teamId;
               const isDisqualified = isTeamDisqualified(submission.teamId);
