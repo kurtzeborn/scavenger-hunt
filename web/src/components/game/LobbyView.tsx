@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUsers, faSpinner, faGamepad, faClock, faFlask, faUserPlus, faTimes, faQrcode } from '@fortawesome/free-solid-svg-icons';
+import { faUsers, faSpinner, faGamepad, faClock, faFlask, faUserPlus, faTimes, faQrcode, faHome } from '@fortawesome/free-solid-svg-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { QRCodeSVG } from 'qrcode.react';
 import { fetchTeams, seedTestTeams, addCrewMember } from '../../api';
@@ -19,6 +20,7 @@ interface LobbyViewProps {
 }
 
 export function LobbyView({ game, isGameKeeper, onStartGame, startingGame }: LobbyViewProps) {
+  const navigate = useNavigate();
   const { session } = usePlayerSession();
   const queryClient = useQueryClient();
   const [showQRCode, setShowQRCode] = useState(false);
@@ -95,6 +97,15 @@ export function LobbyView({ game, isGameKeeper, onStartGame, startingGame }: Lob
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 sm:gap-3">
+              {isGameKeeper && (
+                <button
+                  onClick={() => navigate('/dashboard')}
+                  className="text-white/80 hover:text-white transition-colors p-1 sm:p-2"
+                  title="Back to Dashboard"
+                >
+                  <FontAwesomeIcon icon={faHome} className="text-base sm:text-xl" />
+                </button>
+              )}
               <div>
                 <p className="text-blue-100 text-[10px] sm:text-xs">Game Code</p>
                 <h1 className="text-lg sm:text-2xl font-mono font-bold tracking-wider">{game.id}</h1>
