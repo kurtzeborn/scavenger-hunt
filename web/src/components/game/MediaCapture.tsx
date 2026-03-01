@@ -12,6 +12,7 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { uploadMedia, fetchMediaSubmissions } from '../../api';
 import { usePlayerSession } from '../../contexts/PlayerSessionContext';
+import { detectOrientationMismatch } from '../../utils/gameUtils';
 import type { Game, Scenario } from '../../types';
 
 interface MediaCaptureProps {
@@ -135,12 +136,11 @@ export function MediaCapture({ game, scenario, onComplete, onCancel }: MediaCapt
     setCaptureState('recording');
 
     // Capture device orientation at recording start for video orientation fix
-    const angle = screen.orientation?.angle ?? 0;
     const vTrack = stream.getVideoTracks()[0];
     const vSettings = vTrack?.getSettings();
-    const isDeviceLandscape = angle === 90 || angle === 270;
-    const isStreamPortrait = (vSettings?.height ?? 0) > (vSettings?.width ?? 0);
-    setCapturedOrientationAngle(isDeviceLandscape && isStreamPortrait ? angle : undefined);
+    setCapturedOrientationAngle(
+      detectOrientationMismatch(vSettings?.width ?? 0, vSettings?.height ?? 0)
+    );
 
     const options = { mimeType: 'video/webm;codecs=vp8,opus' };
     let mediaRecorder: MediaRecorder;
@@ -210,17 +210,14 @@ export function MediaCapture({ game, scenario, onComplete, onCancel }: MediaCapt
     const vh = video.videoHeight;
 
     // Detect orientation mismatch: device in landscape but stream is portrait
-    const angle = screen.orientation?.angle ?? 0;
-    const isDeviceLandscape = angle === 90 || angle === 270;
-    const isVideoPortrait = vh > vw;
-    const needsRotation = isDeviceLandscape && isVideoPortrait;
+    const mismatchAngle = detectOrientationMismatch(vw, vh);
 
-    if (needsRotation) {
+    if (mismatchAngle) {
       // Output landscape dimensions
       canvas.width = vh;
       canvas.height = vw;
       ctx.save();
-      if (angle === 90) {
+      if (mismatchAngle === 90) {
         // Phone right-side up → rotate 90° CCW
         ctx.translate(0, vw);
         ctx.rotate(-Math.PI / 2);

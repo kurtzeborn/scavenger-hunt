@@ -1,5 +1,5 @@
 import type { Game, Scenario, Player, Difficulty } from '../types';
-import type React from 'react';
+import type { CSSProperties } from 'react';
 
 // Difficulty sort order for scoring playback: easy first, then medium, then hard
 const DIFFICULTY_ORDER: Record<Difficulty, number> = {
@@ -82,7 +82,7 @@ export function getOrdinalSuffix(n: number): string {
  * When a video was recorded with a mismatched device/stream orientation,
  * we store the device angle at capture time and apply a CSS rotation at display.
  */
-export function getVideoRotationStyle(orientationAngle?: number): React.CSSProperties {
+export function getVideoRotationStyle(orientationAngle?: number): CSSProperties {
   if (orientationAngle === 90) {
     return { transform: 'rotate(-90deg)', transformOrigin: 'center center' };
   }
@@ -91,6 +91,23 @@ export function getVideoRotationStyle(orientationAngle?: number): React.CSSPrope
   }
   return {};
 }
+
+/**
+ * Detect if device orientation and stream aspect ratio are mismatched.
+ * Returns the device angle if a mismatch is detected, undefined otherwise.
+ * Mismatch occurs when the device is in landscape but the camera stream is portrait,
+ * indicating the browser isn't compensating for orientation.
+ */
+export function detectOrientationMismatch(
+  streamWidth: number,
+  streamHeight: number
+): number | undefined {
+  const angle = screen.orientation?.angle ?? 0;
+  const isDeviceLandscape = angle === 90 || angle === 270;
+  const isStreamPortrait = streamHeight > streamWidth;
+  return isDeviceLandscape && isStreamPortrait ? angle : undefined;
+}
+
 export function getPositionLabel(position: number): string {
   return `${position}${getOrdinalSuffix(position)}`;
 }

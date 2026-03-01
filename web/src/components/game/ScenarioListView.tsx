@@ -14,12 +14,13 @@ import {
   faQrcode,
 } from '@fortawesome/free-solid-svg-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { QRCodeSVG } from 'qrcode.react';
 import { fetchTeams, fetchScenarios, pauseGame, resumeGame, endGame } from '../../api';
 import { usePlayerSession } from '../../contexts/PlayerSessionContext';
 import type { Game, Scenario } from '../../types';
+import { getOrderedGameScenarios } from '../../utils/gameUtils';
 import { MediaCapture } from './MediaCapture';
 import { ConfirmModal } from '../shared/ConfirmModal';
+import { QRCodeModal } from '../shared/QRCodeModal';
 
 interface ScenarioListViewProps {
   game: Game;
@@ -34,9 +35,6 @@ export function ScenarioListView({ game, isGameKeeper }: ScenarioListViewProps) 
   const [showTimesUpMessage, setShowTimesUpMessage] = useState(false);
   const [showEndGameConfirm, setShowEndGameConfirm] = useState(false);
   const [showQRCode, setShowQRCode] = useState(false);
-
-  // Generate the join URL for QR code
-  const joinUrl = `https://vsh.k61.dev/game/${game.id}`;
 
   // Mutations for game control
   const pauseMutation = useMutation({
@@ -74,10 +72,7 @@ export function ScenarioListView({ game, isGameKeeper }: ScenarioListViewProps) 
   });
 
   // Get scenarios for this game in order
-  const gameScenarios = game.scenarios
-    .sort((a, b) => a.order - b.order)
-    .map((ref) => allScenarios.find((s) => s.id === ref.scenarioId))
-    .filter((s): s is Scenario => s !== undefined);
+  const gameScenarios = getOrderedGameScenarios(game, allScenarios);
 
   // Find current player's team
   const myTeam = teams.find((t) => t.id === session?.teamId);
@@ -208,35 +203,7 @@ export function ScenarioListView({ game, isGameKeeper }: ScenarioListViewProps) 
 
       {/* QR Code Modal */}
       {showQRCode && (
-        <div 
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowQRCode(false)}
-        >
-          <div 
-            className="bg-white rounded-2xl p-6 max-w-sm w-full text-center"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-xl font-bold text-gray-800 mb-2">Scan to Join</h2>
-            <p className="text-gray-600 text-sm mb-4">
-              Game Code: <span className="font-mono font-bold">{game.id}</span>
-            </p>
-            <div className="bg-white p-4 rounded-lg inline-block">
-              <QRCodeSVG 
-                value={joinUrl} 
-                size={200}
-                level="M"
-                includeMargin={true}
-              />
-            </div>
-            <p className="text-gray-500 text-xs mt-4 break-all">{joinUrl}</p>
-            <button
-              onClick={() => setShowQRCode(false)}
-              className="mt-4 px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-700 font-medium transition-colors"
-            >
-              Close
-            </button>
-          </div>
-        </div>
+        <QRCodeModal gameId={game.id} onClose={() => setShowQRCode(false)} />
       )}
 
       {/* Sticky container for header + scoreboard */}
