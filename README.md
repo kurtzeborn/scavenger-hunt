@@ -1,5 +1,7 @@
 # Video Scavenger Hunt
 
+[![deploy](https://img.shields.io/github/actions/workflow/status/kurtzeborn/scavenger-hunt/deploy.yml?label=deploy)](https://github.com/kurtzeborn/scavenger-hunt/actions/workflows/deploy.yml)
+
 A multiplayer video scavenger hunt game where teams compete to act out scenarios and capture them on video. A game keeper manages the session and reviews submissions at the end.
 
 **Production URL**: https://vsh.k61.dev
