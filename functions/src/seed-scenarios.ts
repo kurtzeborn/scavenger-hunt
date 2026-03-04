@@ -112,7 +112,7 @@ export const SEED_SCENARIOS: Scenario[] = [
   {
     id: 's-24',
     title: 'How Rude',
-    description: 'Take a drink of soda an burp.',
+    description: 'Take a drink of soda and burp.',
     mediaType: 'video',
     category: 'general',
     difficulty: 'hard',
