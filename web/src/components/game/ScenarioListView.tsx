@@ -109,6 +109,7 @@ export function ScenarioListView({ game, isGameKeeper }: ScenarioListViewProps) 
     // Update immediately when game state changes (pause/resume)
     const newRemaining = calculateTimeRemaining();
     if (newRemaining !== timeRemaining) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTimeRemaining(newRemaining);
     }
     

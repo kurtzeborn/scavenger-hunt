@@ -137,6 +137,7 @@ export function ResultsView({ game, isGameKeeper }: ResultsViewProps) {
   // Mark revealing as complete when all teams are shown
   useEffect(() => {
     if (revealedCount >= teams.length && teams.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsRevealing(false);
     }
   }, [revealedCount, teams.length]);
@@ -144,6 +145,7 @@ export function ResultsView({ game, isGameKeeper }: ResultsViewProps) {
   // For completed games, set revealedCount so replay link is visible
   useEffect(() => {
     if (game.status === 'complete' && teams.length > 0 && revealedCount === 0 && !isRevealing) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRevealedCount(teams.length);
     }
   }, [game.status, teams.length, revealedCount, isRevealing]);
