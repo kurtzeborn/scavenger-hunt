@@ -91,7 +91,7 @@ jobs:
           # To reset all data, manually run: az deployment group create ... --parameters resetData=true
           # Then re-seed: curl -X POST https://func-vsh-prod.azurewebsites.net/api/scenarios/seed
           #               curl -X POST https://func-vsh-prod.azurewebsites.net/api/gamekeepers/seed
-          parameters: environment=prod customDomain=vsh.k61.dev location=westus2
+          parameters: environment=prod customDomain=vsh.k61.dev location=westus2 storageAccountName=stvshmevc44q6m37scprod
           failOnStdErr: false
 
       - name: Configure Function App Settings

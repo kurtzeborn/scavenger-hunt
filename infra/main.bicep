@@ -23,6 +23,9 @@ param customDomain string = ''
 @description('Reset data by recreating tables and reseeding. Only set to true when you want to clear all data!')
 param resetData bool = false
 
+@description('Storage account name (defaults to uniqueString-based name)')
+param storageAccountName string = 'stvsh${uniqueString(resourceGroup().id)}${environment}'
+
 @description('Tags to apply to all resources')
 param tags object = {
   project: 'video-scavenger-hunt'
@@ -37,7 +40,6 @@ var resourceSuffix = environment == 'prod' ? '-prod' : '-${environment}'
 var staticSiteName = 'swa-vsh${resourceSuffix}'
 var functionAppName = 'func-vsh${resourceSuffix}'
 var appServicePlanName = 'asp-vsh${resourceSuffix}'
-var storageAccountName = 'stvsh${uniqueString(resourceGroup().id)}${environment}'
 
 // ============================================================================
 // Storage Account with Blob Lifecycle Policy
