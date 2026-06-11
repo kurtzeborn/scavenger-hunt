@@ -9,7 +9,7 @@ on:
 
 env:
   AZURE_RESOURCE_GROUP: rg-vsh-prod
-  AZURE_LOCATION: westus2
+  AZURE_LOCATION: eastus2
   FUNCTION_APP_NAME: func-vsh-prod
   SWA_NAME: swa-vsh-prod
 
